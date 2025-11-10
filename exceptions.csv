@@ -1,0 +1,11 @@
+id,event_id,exception_sub_category,status,error_message,times_replayed
+1,EVT-001,OUT_OF_ORDER,OPEN,"CANCEL event received before NEW event for trade ID TRD-12345",0
+2,EVT-006,INVALID_EVENT,OPEN,"Unsupported event type 'TRANSFER' not in allowed list [NEW, MODIFY, CANCEL, DELETE]",0
+3,EVT-011,PREVIOUSLY_PROCESSED_MESSAGE,CLOSED,"Duplicate event_id 'EVT-011-DUP' detected - message already processed 2 hours ago",0
+4,EVT-002,OUT_OF_ORDER,CLOSED,"Version 3 received before version 2 for trade ID TRD-67890",2
+5,EVT-007,INVALID_EVENT,OPEN,"Schema validation failed: missing required field 'trade_date' in event payload",2
+6,EVT-012,PREVIOUSLY_PROCESSED_MESSAGE,OPEN,"Kafka replay detected: message with event_id 'EVT-012-DUP' already exists in database",1
+7,EVT-004,OUT_OF_ORDER,OPEN,"DELETE operation on non-existent trade ID TRD-22222",3
+8,EVT-009,INVALID_EVENT,OPEN,"Event type field is null or empty in message",0
+9,EVT-014,PREVIOUSLY_PROCESSED_MESSAGE,OPEN,"Idempotency check failed: event_id 'EVT-014-DUP' already processed successfully",3
+10,EVT-003,OUT_OF_ORDER,OPEN,"MODIFY event received but base NEW event not found for trade ID TRD-11111",1
