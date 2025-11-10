@@ -54,7 +54,10 @@ async def list_resources() -> list[Resource]:
 
 @app.read_resource()
 async def read_resource(uri: str) -> str:
-    if uri == "file:///exception_guide.md":
+    # Convert URI to string (it comes as a Pydantic AnyUrl object)
+    uri_str = str(uri)
+
+    if uri_str == "file:///exception_guide.md":
         guide_path = Path(__file__).parent / "exception_guide.md"
         try:
             return guide_path.read_text()
@@ -63,7 +66,7 @@ async def read_resource(uri: str) -> str:
         except Exception as e:
             raise ValueError(f"Error reading resource: {e}")
 
-    raise ValueError(f"Unknown resource: {uri}")
+    raise ValueError(f"Unknown resource: {uri_str}")
 
 async def main():
     async with stdio_server() as (read_stream, write_stream):
