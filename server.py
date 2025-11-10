@@ -15,12 +15,7 @@ async def list_tools() -> list[Tool]:
             description="Get the schema of trade_ingestion_exception table",
             inputSchema={
                 "type": "object",
-                "properties": {
-                    "tableName": {
-                        "type": "string",
-                        "description": "Table name to query"
-                    }
-                }
+                "properties": {}
             }
         )
     ]
@@ -61,8 +56,13 @@ async def list_resources() -> list[Resource]:
 async def read_resource(uri: str) -> str:
     if uri == "file:///exception_guide.md":
         guide_path = Path(__file__).parent / "exception_guide.md"
-        return guide_path.read_text()
-    
+        try:
+            return guide_path.read_text()
+        except FileNotFoundError:
+            raise ValueError(f"Resource file not found: {guide_path}")
+        except Exception as e:
+            raise ValueError(f"Error reading resource: {e}")
+
     raise ValueError(f"Unknown resource: {uri}")
 
 async def main():
