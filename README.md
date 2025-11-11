@@ -2,6 +2,23 @@
 
 MCP server for analyzing trade ingestion exceptions.
 
+## Project Structure
+
+```
+exception-mcp-server/
+├── server.py              # MCP server (main entry point)
+├── requirements.txt       # Python dependencies
+├── data/                  # Data files
+│   ├── exceptions.csv     # Exception schema
+│   └── test_data.json     # Test data
+├── examples/              # Example code
+│   ├── client_example.py  # MCP client example
+│   ├── usage_demo.py      # Usage demonstrations
+│   └── simulation.py      # Test data simulator
+└── docs/                  # Documentation
+    └── exception_guide.md # Exception investigation guide
+```
+
 ## Features
 
 **Tools:**
@@ -30,10 +47,10 @@ Run the included client to interact with the server:
 
 ```bash
 # Basic usage - demonstrates all features
-python client.py
+python examples/client_example.py
 
 # Run example scenarios
-python example_usage.py
+python examples/usage_demo.py
 ```
 
 ### Programmatic Usage
@@ -41,7 +58,9 @@ python example_usage.py
 Use the client in your own Python code:
 
 ```python
-from client import ExceptionAnalysisClient
+import sys
+sys.path.append('examples')
+from client_example import ExceptionAnalysisClient
 
 async def main():
     client = ExceptionAnalysisClient()
@@ -67,7 +86,7 @@ asyncio.run(main())
 
 ### Client Features
 
-The Python client (`client.py`) provides:
+The Python client (`examples/client_example.py`) provides:
 - **connect()** - Connect to the MCP server
 - **list_tools()** - List all available tools
 - **list_resources()** - List all available resources
@@ -75,7 +94,7 @@ The Python client (`client.py`) provides:
 - **read_exception_guide()** - Read the exception investigation guide
 - **disconnect()** - Disconnect from the server
 
-See `example_usage.py` for more detailed usage patterns.
+See `examples/usage_demo.py` for more detailed usage patterns.
 
 ## MCP Client Configuration (Claude Desktop)
 
