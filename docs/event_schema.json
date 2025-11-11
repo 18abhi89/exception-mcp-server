@@ -1,0 +1,38 @@
+{
+  "valid_event_types": ["NEW", "MODIFY", "CANCEL", "DELETE"],
+  "required_fields": [
+    "event_id",
+    "event_type",
+    "trade_id",
+    "trade_date",
+    "version",
+    "timestamp"
+  ],
+  "event_type_rules": {
+    "NEW": {
+      "description": "Creates a new trade record",
+      "requires_existing_trade": false,
+      "version_constraint": "Must be version 1"
+    },
+    "MODIFY": {
+      "description": "Updates an existing trade",
+      "requires_existing_trade": true,
+      "version_constraint": "Must be sequential (n+1)"
+    },
+    "CANCEL": {
+      "description": "Cancels an existing trade",
+      "requires_existing_trade": true,
+      "version_constraint": "Any version after NEW"
+    },
+    "DELETE": {
+      "description": "Removes a trade record",
+      "requires_existing_trade": true,
+      "version_constraint": "Must have existing record"
+    }
+  },
+  "sequencing_rules": {
+    "NEW must come first": "All other event types require a NEW event to exist first",
+    "Version ordering": "MODIFY events must be processed in sequential version order",
+    "No operations on deleted": "Cannot MODIFY or CANCEL a trade that has been DELETED"
+  }
+}

@@ -22,6 +22,7 @@ DOCS_DIR = PROJECT_ROOT / "docs"
 EXCEPTIONS_CSV = DATA_DIR / "exceptions.csv"
 EXCEPTION_HISTORY_CSV = DATA_DIR / "exception_history.csv"
 EXCEPTION_GUIDE = DOCS_DIR / "exception_guide.md"
+EVENT_SCHEMA = DOCS_DIR / "event_schema.json"
 
 app = Server("exception-analysis-server")
 
@@ -173,6 +174,78 @@ def analyze_exception_with_history(exception: Dict[str, Any]) -> str:
     return analysis
 
 
+def query_exceptions(filters: Dict[str, Any]) -> List[Dict[str, Any]]:
+    """Query exceptions with optional filters."""
+    exceptions = []
+    try:
+        with open(EXCEPTIONS_CSV, 'r') as f:
+            reader = csv.DictReader(f)
+            for row in reader:
+                # Apply filters
+                if 'status' in filters and row.get('status') != filters['status']:
+                    continue
+                if 'exception_category' in filters and row.get('exception_category') != filters['exception_category']:
+                    continue
+                if 'exception_sub_category' in filters and row.get('exception_sub_category') != filters['exception_sub_category']:
+                    continue
+                if 'event_id' in filters and row.get('event_id') != filters['event_id']:
+                    continue
+                if 'min_replays' in filters and int(row.get('times_replayed', 0)) < filters['min_replays']:
+                    continue
+
+                exceptions.append(row)
+    except Exception as e:
+        print(f"Error querying exceptions: {e}")
+
+    return exceptions
+
+
+def get_exception_by_id(exception_id: str) -> Dict[str, Any] | None:
+    """Get a specific exception by its ID."""
+    try:
+        with open(EXCEPTIONS_CSV, 'r') as f:
+            reader = csv.DictReader(f)
+            for row in reader:
+                if row.get('exception_id') == exception_id:
+                    return row
+    except Exception as e:
+        print(f"Error reading exception: {e}")
+
+    return None
+
+
+def get_valid_event_types() -> Dict[str, Any]:
+    """Return valid event types and rules."""
+    return {
+        "valid_event_types": ["NEW", "MODIFY", "CANCEL", "DELETE"],
+        "description": "These are the only supported event types for trade ingestion",
+        "common_invalid_types": ["TRANSFER", "UPDATE", "CREATE", "REMOVE"],
+        "event_type_rules": {
+            "NEW": "Creates a new trade record - must be version 1",
+            "MODIFY": "Updates an existing trade - requires existing trade, sequential version",
+            "CANCEL": "Cancels an existing trade - requires existing trade",
+            "DELETE": "Removes a trade record - requires existing trade"
+        }
+    }
+
+
+def find_related_exceptions(search_term: str) -> List[Dict[str, Any]]:
+    """Find exceptions related to a search term."""
+    related = []
+    try:
+        with open(EXCEPTIONS_CSV, 'r') as f:
+            reader = csv.DictReader(f)
+            for row in reader:
+                if (search_term in row.get('event_id', '') or
+                    search_term in row.get('error_message', '') or
+                    search_term in row.get('exception_id', '')):
+                    related.append(row)
+    except Exception as e:
+        print(f"Error searching exceptions: {e}")
+
+    return related
+
+
 # Tools
 @app.list_tools()
 async def list_tools() -> list[Tool]:
@@ -241,6 +314,74 @@ async def list_tools() -> list[Tool]:
                     }
                 },
                 "required": ["exception_id"]
+            }
+        ),
+        Tool(
+            name="queryExceptions",
+            description="Query exceptions with flexible filters (status, category, sub_category, event_id, min_replays)",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "status": {
+                        "type": "string",
+                        "enum": ["OPEN", "CLOSED"],
+                        "description": "Filter by status"
+                    },
+                    "exception_category": {
+                        "type": "string",
+                        "enum": ["SEQUENCING", "VALIDATION", "DUPLICATE", "BUSINESS_LOGIC", "INFRASTRUCTURE"],
+                        "description": "Filter by exception category"
+                    },
+                    "exception_sub_category": {
+                        "type": "string",
+                        "enum": ["OUT_OF_ORDER", "INVALID_EVENT", "PREVIOUSLY_PROCESSED_MESSAGE", "CALCULATION_ERROR", "TIMEOUT"],
+                        "description": "Filter by exception sub-category"
+                    },
+                    "event_id": {
+                        "type": "string",
+                        "description": "Filter by specific event_id"
+                    },
+                    "min_replays": {
+                        "type": "integer",
+                        "description": "Filter by minimum times_replayed"
+                    }
+                }
+            }
+        ),
+        Tool(
+            name="getExceptionById",
+            description="Get detailed information for a specific exception by its UUID",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "exception_id": {
+                        "type": "string",
+                        "description": "The exception UUID"
+                    }
+                },
+                "required": ["exception_id"]
+            }
+        ),
+        Tool(
+            name="getValidEventTypes",
+            description="Get list of valid event types and rules (useful for INVALID_EVENT investigation)",
+            inputSchema={
+                "type": "object",
+                "properties": {}
+            }
+        ),
+        Tool(
+            name="findRelatedExceptions",
+            description="Find exceptions related to a search term (searches event_id, error_message, exception_id)",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "search_term": {
+                        "type": "string",
+                        "description": "Search term to find in event_id, error_message, or exception_id"
+                    }
+                },
+                "required": ["search_term"]
             }
         )
     ]
@@ -326,6 +467,57 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
         analysis = analyze_exception_with_history(exception)
         return [TextContent(type="text", text=analysis)]
 
+    elif name == "queryExceptions":
+        filters = {}
+        if 'status' in arguments:
+            filters['status'] = arguments['status']
+        if 'exception_category' in arguments:
+            filters['exception_category'] = arguments['exception_category']
+        if 'exception_sub_category' in arguments:
+            filters['exception_sub_category'] = arguments['exception_sub_category']
+        if 'event_id' in arguments:
+            filters['event_id'] = arguments['event_id']
+        if 'min_replays' in arguments:
+            filters['min_replays'] = arguments['min_replays']
+
+        exceptions = query_exceptions(filters)
+
+        if not exceptions:
+            result = "No exceptions found matching the specified filters."
+        else:
+            result = f"Found {len(exceptions)} exception(s):\n\n"
+            result += json.dumps(exceptions, indent=2)
+
+        return [TextContent(type="text", text=result)]
+
+    elif name == "getExceptionById":
+        exception_id = arguments.get('exception_id', '')
+        exception = get_exception_by_id(exception_id)
+
+        if not exception:
+            result = f"Exception with ID {exception_id} not found"
+        else:
+            result = f"Exception details:\n\n{json.dumps(exception, indent=2)}"
+
+        return [TextContent(type="text", text=result)]
+
+    elif name == "getValidEventTypes":
+        valid_types = get_valid_event_types()
+        result = f"Valid Event Types:\n\n{json.dumps(valid_types, indent=2)}"
+        return [TextContent(type="text", text=result)]
+
+    elif name == "findRelatedExceptions":
+        search_term = arguments.get('search_term', '')
+        related = find_related_exceptions(search_term)
+
+        if not related:
+            result = f"No exceptions found related to search term: '{search_term}'"
+        else:
+            result = f"Found {len(related)} related exception(s) for search term '{search_term}':\n\n"
+            result += json.dumps(related, indent=2)
+
+        return [TextContent(type="text", text=result)]
+
     raise ValueError(f"Unknown tool: {name}")
 
 # Resources
@@ -338,6 +530,12 @@ async def list_resources() -> list[Resource]:
             name="Exception Investigation Guide",
             mimeType="text/markdown",
             description="Guide for investigating trade ingestion exceptions"
+        ),
+        Resource(
+            uri="file:///event_schema.json",
+            name="Event Schema and Rules",
+            mimeType="application/json",
+            description="Valid event types, required fields, and sequencing rules for trade ingestion"
         )
     ]
 
@@ -362,6 +560,14 @@ async def read_resource(uri: str) -> str:
             return EXCEPTION_GUIDE.read_text()
         except FileNotFoundError:
             raise ValueError(f"Resource file not found: {EXCEPTION_GUIDE}")
+        except Exception as e:
+            raise ValueError(f"Error reading resource: {e}")
+
+    elif uri_str == "file:///event_schema.json":
+        try:
+            return EVENT_SCHEMA.read_text()
+        except FileNotFoundError:
+            raise ValueError(f"Resource file not found: {EVENT_SCHEMA}")
         except Exception as e:
             raise ValueError(f"Error reading resource: {e}")
 
