@@ -22,7 +22,8 @@ exception-mcp-server/
 │   └── simulation.py          # Test data simulator
 │
 ├── docs/                      # Documentation
-│   └── exception_guide.md     # Exception investigation guide
+│   ├── exception_guide.md     # Exception investigation guide
+│   └── event_schema.json      # Event type rules and validation
 │
 └── test_simple.py             # Core functionality tests
 ```
@@ -34,9 +35,14 @@ exception-mcp-server/
 - **`getHighRetryExceptions`** - Find exceptions with retry count > threshold (default: 5)
 - **`findSimilarExceptions`** - Semantic similarity search using ChromaDB
 - **`analyzeException`** - AI-powered analysis with historical context and thesis
+- **`queryExceptions`** - Query exceptions with flexible filters (status, category, sub_category, event_id, min_replays)
+- **`getExceptionById`** - Get detailed information for a specific exception by UUID
+- **`getValidEventTypes`** - Get list of valid event types and rules (useful for INVALID_EVENT investigation)
+- **`findRelatedExceptions`** - Find exceptions by searching event_id, error_message, or exception_id
 
 ### Resources
 - **`exception_guide.md`** - Comprehensive investigation guide for all exception categories
+- **`event_schema.json`** - Valid event types, required fields, and sequencing rules
 
 ### Streamlit Dashboard
 - Visual interface for exception analysis
