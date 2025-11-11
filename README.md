@@ -6,26 +6,43 @@ MCP server for analyzing trade ingestion exceptions.
 
 ```
 exception-mcp-server/
-├── server.py              # MCP server (main entry point)
-├── requirements.txt       # Python dependencies
-├── data/                  # Data files
-│   ├── exceptions.csv     # Exception schema
-│   └── test_data.json     # Test data
-├── examples/              # Example code
-│   ├── client_example.py  # MCP client example
-│   ├── usage_demo.py      # Usage demonstrations
-│   └── simulation.py      # Test data simulator
-└── docs/                  # Documentation
-    └── exception_guide.md # Exception investigation guide
+├── server.py                  # MCP server (main entry point)
+├── exception_db.py            # ChromaDB wrapper for similarity search
+├── streamlit_app.py           # Web-based dashboard UI
+├── requirements.txt           # Python dependencies
+│
+├── data/                      # Data files
+│   ├── exceptions.csv         # Current exceptions (real schema)
+│   ├── exception_history.csv  # Historical exceptions with resolutions
+│   └── test_data.json         # Test scenarios
+│
+├── examples/                  # Example code
+│   ├── client_example.py      # MCP client example
+│   ├── usage_demo.py          # Usage demonstrations
+│   └── simulation.py          # Test data simulator
+│
+├── docs/                      # Documentation
+│   └── exception_guide.md     # Exception investigation guide
+│
+└── test_simple.py             # Core functionality tests
 ```
 
 ## Features
 
-**Tools:**
-- `getExceptionTableSchema` - Get database schema for exception table
+### MCP Tools
+- **`getExceptionTableSchema`** - Get full exception_events table schema
+- **`getHighRetryExceptions`** - Find exceptions with retry count > threshold (default: 5)
+- **`findSimilarExceptions`** - Semantic similarity search using ChromaDB
+- **`analyzeException`** - AI-powered analysis with historical context and thesis
 
-**Resources:**
-- `exception_guide.md` - Investigation guide for common exceptions
+### Resources
+- **`exception_guide.md`** - Comprehensive investigation guide for all exception categories
+
+### Streamlit Dashboard
+- Visual interface for exception analysis
+- High retry exception monitoring
+- Similarity search with confidence scores
+- Historical resolution database browser
 
 ## Installation
 
@@ -34,6 +51,28 @@ pip install -r requirements.txt
 ```
 
 ## Usage
+
+### Option 1: Visual Dashboard (Recommended for Exploration)
+
+Launch the Streamlit web interface:
+
+```bash
+streamlit run streamlit_app.py
+```
+
+This opens a browser-based dashboard with:
+- **High Retry Exceptions Tab**: View all exceptions with > 5 retries (configurable threshold)
+- **Analyze Exception Tab**: Deep dive analysis with similarity search and confidence scores
+- **Historical Database Tab**: Browse resolved exceptions and try similarity searches
+
+Perfect for:
+- Quick investigation of current issues
+- Visualizing exception patterns
+- Exploring historical resolutions with confidence scores
+
+### Option 2: MCP Server (For Tool Integration)
+
+Run as an MCP server for integration with Claude Desktop or other MCP clients:
 
 ```bash
 python server.py
