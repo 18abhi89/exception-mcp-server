@@ -58,7 +58,7 @@ async def read_resource(uri: str) -> str:
     uri_str = str(uri)
 
     if uri_str == "file:///exception_guide.md":
-        guide_path = Path(__file__).parent / "exception_guide.md"
+        guide_path = Path(__file__).parent / "docs" / "exception_guide.md"
         try:
             return guide_path.read_text()
         except FileNotFoundError:
