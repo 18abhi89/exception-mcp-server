@@ -299,7 +299,7 @@ class ExceptionSimulator:
 
 def main():
     """Main entry point."""
-    test_data_path = Path(__file__).parent / "test_data.json"
+    test_data_path = Path(__file__).parent.parent / "data" / "test_data.json"
 
     simulator = ExceptionSimulator(test_data_path)
     success = simulator.run()

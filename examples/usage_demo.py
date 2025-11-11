@@ -6,7 +6,7 @@ This script demonstrates various ways to use the client programmatically.
 """
 
 import asyncio
-from client import ExceptionAnalysisClient
+from client_example import ExceptionAnalysisClient
 
 
 async def example_1_basic_usage():
