@@ -56,3 +56,6 @@ env/
 # OS
 .DS_Store
 Thumbs.db
+
+# ChromaDB data
+chromadb_data/
