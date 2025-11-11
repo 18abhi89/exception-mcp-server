@@ -197,36 +197,42 @@ with tab2:
 
                     # Show similar cases with confidence scores
                     st.markdown("---")
-                    st.markdown("### 🎯 Similar Historical Cases (Confidence Scores)")
+                    st.markdown("### 🎯 Similar Historical Cases (High Confidence > 70%)")
 
                     similar = db.find_similar(
                         error_message=selected_exception['error_message'],
                         exception_type=selected_exception['exception_type'],
                         exception_category=selected_exception['exception_category'],
-                        n_results=5
+                        n_results=10  # Get more results to increase chance of finding high-confidence matches
                     )
 
+                    # Filter for high confidence matches (> 70%)
+                    high_confidence_matches = []
                     if similar:
-                        for i, sim in enumerate(similar, 1):
+                        for sim in similar:
                             confidence = (1 - sim['distance']) * 100
+                            if confidence > 70:
+                                high_confidence_matches.append((sim, confidence))
+
+                    if high_confidence_matches:
+                        st.success(f"Found {len(high_confidence_matches)} high-confidence match(es) (> 70% similarity)")
+
+                        for i, (sim, confidence) in enumerate(high_confidence_matches, 1):
                             metadata = sim.get('metadata', {})
 
-                            # Confidence indicator
+                            # Confidence indicator (now all are high confidence)
                             if confidence >= 80:
                                 confidence_color = "🟢"
-                                confidence_label = "High Confidence"
-                            elif confidence >= 60:
-                                confidence_color = "🟡"
-                                confidence_label = "Medium Confidence"
+                                confidence_label = "Very High Confidence"
                             else:
-                                confidence_color = "🔴"
-                                confidence_label = "Low Confidence"
+                                confidence_color = "🟡"
+                                confidence_label = "High Confidence"
 
                             with st.expander(
                                 f"{confidence_color} Case {i}: {confidence:.1f}% Similar - {confidence_label}",
                                 expanded=(i == 1)  # Expand first one
                             ):
-                                st.progress(confidence / 100)
+                                st.progress(max(0.0, min(1.0, confidence / 100)))
 
                                 st.markdown(f"**Exception Type:** {metadata.get('exception_type', 'N/A')}")
                                 st.markdown(f"**Category:** {metadata.get('exception_category', 'N/A')}")
@@ -235,7 +241,7 @@ with tab2:
                                 st.markdown("**Resolution:**")
                                 st.success(metadata.get('resolution', 'No resolution recorded'))
                     else:
-                        st.warning("No similar historical cases found. This may be a new type of exception.")
+                        st.warning("No high-confidence matches found (> 70% similarity). This may be a new type of exception or require manual investigation.")
 
 # Tab 3: Historical Database
 with tab3:
@@ -262,20 +268,35 @@ with tab3:
 
     if st.button("Search"):
         with st.spinner("Searching..."):
-            results = db.find_similar(error_message=query, n_results=3)
+            results = db.find_similar(error_message=query, n_results=10)
+
+            # Filter for high confidence results (> 70%)
+            high_confidence_results = []
+            for result in results:
+                similarity = (1 - result['distance']) * 100
+                if similarity > 70:
+                    high_confidence_results.append((result, similarity))
 
             st.markdown(f"**Query:** `{query}`")
-            st.markdown(f"**Found {len(results)} similar cases:**")
 
-            for i, result in enumerate(results, 1):
-                similarity = (1 - result['distance']) * 100
-                metadata = result.get('metadata', {})
+            if high_confidence_results:
+                st.markdown(f"**Found {len(high_confidence_results)} high-confidence match(es) (> 70% similarity):**")
 
-                st.markdown(f"**{i}. Similarity: {similarity:.1f}%**")
-                st.markdown(f"- Type: {metadata.get('exception_type', 'N/A')}")
-                st.markdown(f"- Category: {metadata.get('exception_category', 'N/A')}")
-                st.markdown(f"- Resolution: {metadata.get('resolution', 'N/A')[:100]}...")
-                st.markdown("---")
+                for i, (result, similarity) in enumerate(high_confidence_results, 1):
+                    metadata = result.get('metadata', {})
+
+                    # Color code based on confidence
+                    if similarity >= 80:
+                        st.markdown(f"**{i}. 🟢 Similarity: {similarity:.1f}% (Very High)**")
+                    else:
+                        st.markdown(f"**{i}. 🟡 Similarity: {similarity:.1f}% (High)**")
+
+                    st.markdown(f"- Type: {metadata.get('exception_type', 'N/A')}")
+                    st.markdown(f"- Category: {metadata.get('exception_category', 'N/A')}")
+                    st.markdown(f"- Resolution: {metadata.get('resolution', 'N/A')[:100]}...")
+                    st.markdown("---")
+            else:
+                st.warning(f"No high-confidence matches found (> 70% similarity) for query: '{query}'")
 
 # Footer
 st.sidebar.markdown("---")
