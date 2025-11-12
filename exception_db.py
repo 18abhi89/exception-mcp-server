@@ -34,6 +34,7 @@ class ExceptionDB:
         Clean metadata to ensure ChromaDB compatibility.
 
         ChromaDB only accepts: bool, int, float, str (no None values).
+        Empty strings are allowed but None values must be filtered out.
 
         Args:
             meta: Raw metadata dictionary
@@ -43,13 +44,10 @@ class ExceptionDB:
         """
         cleaned = {}
         for key, value in meta.items():
-            # Skip None values entirely
+            # Skip None values entirely - ChromaDB doesn't accept None
             if value is None:
                 continue
-            # Convert empty strings to a placeholder or skip them
-            if isinstance(value, str) and value == '':
-                continue
-            # Keep valid types: bool, int, float, str
+            # Keep valid types: bool, int, float, str (including empty strings)
             if isinstance(value, (bool, int, float, str)):
                 cleaned[key] = value
         return cleaned
