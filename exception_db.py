@@ -28,6 +28,32 @@ class ExceptionDB:
             metadata={"description": "Historical exception data for similarity search"}
         )
 
+    @staticmethod
+    def _clean_metadata(meta: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Clean metadata to ensure ChromaDB compatibility.
+
+        ChromaDB only accepts: bool, int, float, str (no None values).
+
+        Args:
+            meta: Raw metadata dictionary
+
+        Returns:
+            Cleaned metadata dictionary with None values filtered out
+        """
+        cleaned = {}
+        for key, value in meta.items():
+            # Skip None values entirely
+            if value is None:
+                continue
+            # Convert empty strings to a placeholder or skip them
+            if isinstance(value, str) and value == '':
+                continue
+            # Keep valid types: bool, int, float, str
+            if isinstance(value, (bool, int, float, str)):
+                cleaned[key] = value
+        return cleaned
+
     def add_exception(
         self,
         exception_id: str,
@@ -73,6 +99,9 @@ class ExceptionDB:
         }
         if metadata:
             meta.update(metadata)
+
+        # Clean metadata to ensure ChromaDB compatibility (no None values)
+        meta = self._clean_metadata(meta)
 
         # Add to collection
         self.collection.add(
@@ -147,20 +176,34 @@ class ExceptionDB:
         with open(csv_path, 'r') as f:
             reader = csv.DictReader(f)
             for row in reader:
+                # Helper function to safely get non-empty values from CSV
+                def get_value(key: str, default: str = '') -> str:
+                    val = row.get(key, default)
+                    # CSV reader may return None or empty strings
+                    return val if val is not None and val != '' else default
+
+                # Prepare metadata with type conversions
+                metadata = {}
+                if get_value('event_id'):
+                    metadata['event_id'] = get_value('event_id')
+                if get_value('source_system'):
+                    metadata['source_system'] = get_value('source_system')
+                if get_value('times_replayed'):
+                    try:
+                        metadata['times_replayed'] = int(get_value('times_replayed', '0'))
+                    except (ValueError, TypeError):
+                        metadata['times_replayed'] = 0
+
                 self.add_exception(
                     exception_id=row['exception_id'],
-                    error_message=row['error_message'],
-                    exception_type=row['exception_type'],
-                    exception_category=row['exception_category'],
-                    exception_sub_category=row.get('exception_sub_category', ''),
-                    trace=row.get('trace', ''),
-                    stacktrace=row.get('stacktrace', ''),
-                    resolution=row.get('resolution', ''),
-                    metadata={
-                        'event_id': row.get('event_id', ''),
-                        'source_system': row.get('source_system', ''),
-                        'times_replayed': row.get('times_replayed', '0')
-                    }
+                    error_message=get_value('error_message'),
+                    exception_type=get_value('exception_type'),
+                    exception_category=get_value('exception_category'),
+                    exception_sub_category=get_value('exception_sub_category'),
+                    trace=get_value('trace'),
+                    stacktrace=get_value('stacktrace'),
+                    resolution=get_value('resolution'),
+                    metadata=metadata
                 )
                 count += 1
 
