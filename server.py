@@ -96,13 +96,13 @@ def load_exception_history() -> None:
 
 
 def get_high_retry_exceptions(threshold: int = 5) -> List[Dict[str, Any]]:
-    """Get exceptions with retry count above threshold."""
+    """Get exceptions with retry count above or equal to threshold."""
     exceptions = []
     try:
         with open(EXCEPTIONS_CSV, 'r') as f:
             reader = csv.DictReader(f)
             for row in reader:
-                if int(row.get('times_replayed', 0)) > threshold:
+                if int(row.get('times_replayed', 0)) >= threshold:
                     exceptions.append(row)
     except Exception as e:
         print(f"Error reading exceptions: {e}")
