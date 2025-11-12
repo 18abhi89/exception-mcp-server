@@ -203,6 +203,8 @@ with tab2:
                         error_message=selected_exception['error_message'],
                         exception_type=selected_exception['exception_type'],
                         exception_category=selected_exception['exception_category'],
+                        exception_sub_category=selected_exception.get('exception_sub_category', ''),
+                        stacktrace=selected_exception.get('trace', ''),
                         n_results=5
                     )
 
@@ -230,6 +232,7 @@ with tab2:
 
                                 st.markdown(f"**Exception Type:** {metadata.get('exception_type', 'N/A')}")
                                 st.markdown(f"**Category:** {metadata.get('exception_category', 'N/A')}")
+                                st.markdown(f"**Sub-Category:** {metadata.get('exception_sub_category', 'N/A')}")
                                 st.markdown(f"**Event ID:** {metadata.get('event_id', 'N/A')}")
 
                                 st.markdown("**Resolution:**")

@@ -115,13 +115,17 @@ def analyze_exception_with_history(exception: Dict[str, Any]) -> str:
     error_message = exception.get('error_message', '')
     exception_type = exception.get('exception_type', '')
     exception_category = exception.get('exception_category', '')
+    exception_sub_category = exception.get('exception_sub_category', '')
+    stacktrace = exception.get('trace', '')  # Use 'trace' field from current exceptions
     times_replayed = exception.get('times_replayed', 0)
 
-    # Find similar exceptions
+    # Find similar exceptions using stacktrace and metadata
     similar = exception_db.find_similar(
         error_message=error_message,
         exception_type=exception_type,
         exception_category=exception_category,
+        exception_sub_category=exception_sub_category,
+        stacktrace=stacktrace,
         n_results=3
     )
 
@@ -275,7 +279,7 @@ async def list_tools() -> list[Tool]:
         ),
         Tool(
             name="findSimilarExceptions",
-            description="Find similar historical exceptions using semantic search",
+            description="Find similar historical exceptions using semantic search based on stacktrace and exception metadata",
             inputSchema={
                 "type": "object",
                 "properties": {
@@ -291,6 +295,16 @@ async def list_tools() -> list[Tool]:
                     "exception_category": {
                         "type": "string",
                         "description": "Exception category (optional)",
+                        "default": ""
+                    },
+                    "exception_sub_category": {
+                        "type": "string",
+                        "description": "Exception sub-category (optional)",
+                        "default": ""
+                    },
+                    "stacktrace": {
+                        "type": "string",
+                        "description": "Full stacktrace for better similarity matching (highly recommended for accurate results)",
                         "default": ""
                     },
                     "n_results": {
@@ -421,25 +435,30 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
         error_message = arguments.get('error_message', '')
         exception_type = arguments.get('exception_type', '')
         exception_category = arguments.get('exception_category', '')
+        exception_sub_category = arguments.get('exception_sub_category', '')
+        stacktrace = arguments.get('stacktrace', '')
         n_results = arguments.get('n_results', 5)
 
         similar = exception_db.find_similar(
             error_message=error_message,
             exception_type=exception_type,
             exception_category=exception_category,
+            exception_sub_category=exception_sub_category,
+            stacktrace=stacktrace,
             n_results=n_results
         )
 
         if not similar:
             result = "No similar exceptions found in historical data."
         else:
-            result = f"Found {len(similar)} similar exception(s):\n\n"
+            result = f"Found {len(similar)} similar exception(s) based on stacktrace and metadata:\n\n"
             for i, sim in enumerate(similar, 1):
                 metadata = sim.get('metadata', {})
                 similarity_score = (1 - sim['distance']) * 100
                 result += f"### Similar Case {i} (Similarity: {similarity_score:.1f}%)\n"
                 result += f"- Exception Type: {metadata.get('exception_type', 'N/A')}\n"
                 result += f"- Category: {metadata.get('exception_category', 'N/A')}\n"
+                result += f"- Sub-Category: {metadata.get('exception_sub_category', 'N/A')}\n"
                 result += f"- Resolution: {metadata.get('resolution', 'No resolution recorded')}\n"
                 result += f"- Event ID: {metadata.get('event_id', 'N/A')}\n\n"
 

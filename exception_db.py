@@ -34,7 +34,9 @@ class ExceptionDB:
         error_message: str,
         exception_type: str,
         exception_category: str,
+        exception_sub_category: Optional[str] = None,
         trace: Optional[str] = None,
+        stacktrace: Optional[str] = None,
         resolution: Optional[str] = None,
         metadata: Optional[Dict[str, Any]] = None
     ) -> None:
@@ -46,19 +48,27 @@ class ExceptionDB:
             error_message: The error message text
             exception_type: Type of exception
             exception_category: Category of exception
-            trace: Stack trace (optional)
+            exception_sub_category: Sub-category of exception (optional)
+            trace: Brief trace (optional)
+            stacktrace: Full stack trace (optional)
             resolution: How it was resolved (optional)
             metadata: Additional metadata (optional)
         """
-        # Create searchable text from key fields
+        # Create searchable text from key fields - stacktrace is most important for similarity
         document = f"{error_message}\n{exception_type}\n{exception_category}"
-        if trace:
+        if exception_sub_category:
+            document += f"\n{exception_sub_category}"
+        if stacktrace:
+            # Stacktrace is the most valuable signal for finding similar exceptions
+            document += f"\n{stacktrace}"
+        elif trace:
             document += f"\n{trace}"
 
         # Prepare metadata
         meta = {
             "exception_type": exception_type,
             "exception_category": exception_category,
+            "exception_sub_category": exception_sub_category or "",
             "resolution": resolution or "unresolved"
         }
         if metadata:
@@ -76,22 +86,31 @@ class ExceptionDB:
         error_message: str,
         exception_type: str = "",
         exception_category: str = "",
+        exception_sub_category: str = "",
+        stacktrace: str = "",
         n_results: int = 5
     ) -> List[Dict[str, Any]]:
         """
-        Find similar exceptions using semantic search.
+        Find similar exceptions using semantic search based on stacktrace and metadata.
 
         Args:
             error_message: Error message to search for
             exception_type: Exception type (optional filter)
             exception_category: Exception category (optional filter)
+            exception_sub_category: Exception sub-category (optional filter)
+            stacktrace: Full stack trace for similarity matching (most important signal)
             n_results: Number of results to return
 
         Returns:
             List of similar exceptions with metadata
         """
-        # Create query text
+        # Create query text - stacktrace is the most valuable signal for finding similar exceptions
         query = f"{error_message}\n{exception_type}\n{exception_category}"
+        if exception_sub_category:
+            query += f"\n{exception_sub_category}"
+        if stacktrace:
+            # Stacktrace provides the best semantic matching for similar root causes
+            query += f"\n{stacktrace}"
 
         # Query ChromaDB
         results = self.collection.query(
@@ -133,7 +152,9 @@ class ExceptionDB:
                     error_message=row['error_message'],
                     exception_type=row['exception_type'],
                     exception_category=row['exception_category'],
+                    exception_sub_category=row.get('exception_sub_category', ''),
                     trace=row.get('trace', ''),
+                    stacktrace=row.get('stacktrace', ''),
                     resolution=row.get('resolution', ''),
                     metadata={
                         'event_id': row.get('event_id', ''),
