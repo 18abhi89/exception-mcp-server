@@ -195,9 +195,10 @@ with tab2:
                     st.markdown("### 📋 Analysis Results")
                     st.markdown(analysis)
 
-                    # Show similar cases with confidence scores
+                    # Show top 3 similar cases with detailed justification
                     st.markdown("---")
-                    st.markdown("### 🎯 Similar Historical Cases (Confidence Scores)")
+                    st.markdown("### 🎯 Top 3 Similar Historical Cases")
+                    st.markdown("*Each case includes a confidence score, detailed justification, and SQL query to retrieve the record*")
 
                     similar = db.find_similar(
                         error_message=selected_exception['error_message'],
@@ -205,40 +206,211 @@ with tab2:
                         exception_category=selected_exception['exception_category'],
                         exception_sub_category=selected_exception.get('exception_sub_category', ''),
                         stacktrace=selected_exception.get('trace', ''),
-                        n_results=5
+                        n_results=3  # Focus on top 3
                     )
 
                     if similar:
+                        # Store confidence scores for final recommendation
+                        confidence_scores = []
+
                         for i, sim in enumerate(similar, 1):
                             confidence = (1 - sim['distance']) * 100
+                            confidence_scores.append(confidence)
                             metadata = sim.get('metadata', {})
+                            document = sim.get('document', '')
 
                             # Confidence indicator
                             if confidence >= 80:
                                 confidence_color = "🟢"
                                 confidence_label = "High Confidence"
+                                confidence_reason = "Very similar stacktrace pattern and exception characteristics"
                             elif confidence >= 60:
                                 confidence_color = "🟡"
                                 confidence_label = "Medium Confidence"
+                                confidence_reason = "Moderate similarity in error patterns and context"
                             else:
                                 confidence_color = "🔴"
                                 confidence_label = "Low Confidence"
+                                confidence_reason = "Partial match - exercise caution when applying this resolution"
 
                             with st.expander(
-                                f"{confidence_color} Case {i}: {confidence:.1f}% Similar - {confidence_label}",
-                                expanded=(i == 1)  # Expand first one
+                                f"{confidence_color} **Case {i}: {confidence:.1f}% Confidence** - {confidence_label}",
+                                expanded=(i == 1)  # Expand first one by default
                             ):
+                                # Confidence visualization
                                 st.progress(confidence / 100)
 
-                                st.markdown(f"**Exception Type:** {metadata.get('exception_type', 'N/A')}")
-                                st.markdown(f"**Category:** {metadata.get('exception_category', 'N/A')}")
-                                st.markdown(f"**Sub-Category:** {metadata.get('exception_sub_category', 'N/A')}")
-                                st.markdown(f"**Event ID:** {metadata.get('event_id', 'N/A')}")
+                                # Detailed justification
+                                st.markdown("#### 📊 Confidence Score Justification")
+                                st.info(f"**{confidence:.1f}% Match** - {confidence_reason}")
 
-                                st.markdown("**Resolution:**")
-                                st.success(metadata.get('resolution', 'No resolution recorded'))
+                                # Matching details
+                                st.markdown("**Why this match was selected:**")
+                                match_reasons = []
+
+                                # Compare exception types
+                                if metadata.get('exception_type') == selected_exception['exception_type']:
+                                    match_reasons.append("✓ Identical exception type")
+                                else:
+                                    match_reasons.append("• Different exception type (may indicate related but distinct issue)")
+
+                                # Compare categories
+                                if metadata.get('exception_category') == selected_exception['exception_category']:
+                                    match_reasons.append("✓ Same exception category")
+
+                                # Compare sub-categories
+                                if metadata.get('exception_sub_category') == selected_exception.get('exception_sub_category', ''):
+                                    match_reasons.append("✓ Same exception sub-category")
+
+                                # Stacktrace similarity
+                                if selected_exception.get('trace', ''):
+                                    match_reasons.append("✓ Semantic similarity in stacktrace patterns")
+
+                                for reason in match_reasons:
+                                    st.markdown(f"- {reason}")
+
+                                st.markdown("---")
+
+                                # Exception details
+                                st.markdown("#### 📝 Historical Exception Details")
+                                col1, col2 = st.columns(2)
+
+                                with col1:
+                                    st.markdown(f"**Exception Type:** `{metadata.get('exception_type', 'N/A')}`")
+                                    st.markdown(f"**Category:** `{metadata.get('exception_category', 'N/A')}`")
+                                    st.markdown(f"**Sub-Category:** `{metadata.get('exception_sub_category', 'N/A')}`")
+
+                                with col2:
+                                    st.markdown(f"**Event ID:** `{metadata.get('event_id', 'N/A')}`")
+                                    st.markdown(f"**Source System:** `{metadata.get('source_system', 'N/A')}`")
+                                    st.markdown(f"**Times Replayed:** `{metadata.get('times_replayed', 'N/A')}`")
+
+                                # Resolution
+                                st.markdown("#### ✅ Resolution Applied")
+                                resolution = metadata.get('resolution', 'No resolution recorded')
+                                if resolution != 'No resolution recorded':
+                                    st.success(resolution)
+                                else:
+                                    st.warning(resolution)
+
+                                # SQL Query in collapsible section
+                                st.markdown("---")
+                                st.markdown("#### 🔍 Database Query")
+
+                                # Generate SQL query to fetch this specific record
+                                exception_id = sim.get('id', 'N/A')
+                                event_id = metadata.get('event_id', '')
+
+                                sql_query = f"""-- Query to retrieve this historical exception record
+SELECT
+    exception_id,
+    event_id,
+    error_message,
+    exception_type,
+    exception_category,
+    exception_sub_category,
+    source_system,
+    raising_system,
+    times_replayed,
+    status,
+    trace,
+    resolution,
+    created_date,
+    updated_date
+FROM exception_events
+WHERE exception_id = '{exception_id}'"""
+
+                                if event_id:
+                                    sql_query += f"\n   OR event_id = '{event_id}'"
+
+                                sql_query += ";"
+
+                                with st.expander("📋 Click to view SQL query", expanded=False):
+                                    st.code(sql_query, language="sql")
+                                    st.caption(f"*Use this query to fetch the complete record from the database*")
+
+                        # Final Recommendation Section
+                        st.markdown("---")
+                        st.markdown("### 🎯 Final Recommendation")
+
+                        avg_confidence = sum(confidence_scores) / len(confidence_scores)
+                        max_confidence = max(confidence_scores)
+
+                        # Determine recommendation based on confidence scores
+                        if max_confidence >= 80:
+                            rec_icon = "🟢"
+                            rec_level = "**HIGH CONFIDENCE RECOMMENDATION**"
+                            rec_action = "The top matching case shows strong similarity. The documented resolution is highly likely to resolve this issue."
+                        elif max_confidence >= 60:
+                            rec_icon = "🟡"
+                            rec_level = "**MEDIUM CONFIDENCE RECOMMENDATION**"
+                            rec_action = "The matching cases show moderate similarity. Review the resolutions carefully and adapt them to your specific context."
+                        else:
+                            rec_icon = "🔴"
+                            rec_level = "**LOW CONFIDENCE RECOMMENDATION**"
+                            rec_action = "Limited similarity found with historical cases. Use these as general guidance but expect to need custom investigation and resolution."
+
+                        st.markdown(f"#### {rec_icon} {rec_level}")
+                        st.markdown(f"**Average Confidence:** {avg_confidence:.1f}% | **Best Match:** {max_confidence:.1f}%")
+
+                        st.info(rec_action)
+
+                        # Specific recommended actions
+                        st.markdown("#### 📋 Recommended Actions")
+
+                        # Get the best match
+                        best_match = similar[0]
+                        best_metadata = best_match.get('metadata', {})
+                        best_resolution = best_metadata.get('resolution', '')
+
+                        actions = []
+
+                        # Action based on category
+                        category = selected_exception['exception_category']
+                        times_replayed = int(selected_exception.get('times_replayed', 0))
+
+                        if category == "VALIDATION":
+                            actions.append(f"1. **Stop retrying** - This is a VALIDATION error. Retries will not help after {times_replayed} attempts.")
+                            actions.append("2. **Investigate data quality** - Check the payload for schema violations or invalid data.")
+                            if best_resolution:
+                                actions.append(f"3. **Apply historical resolution** - {best_resolution[:150]}...")
+                        elif category == "SEQUENCING":
+                            actions.append(f"1. **Implement temporal parking** - This is a SEQUENCING error. Retrying indefinitely is not effective after {times_replayed} attempts.")
+                            actions.append("2. **Check message order** - Verify if dependent messages have arrived.")
+                            if best_resolution:
+                                actions.append(f"3. **Apply historical resolution** - {best_resolution[:150]}...")
+                        elif category == "BUSINESS_LOGIC":
+                            actions.append(f"1. **Review business rules** - Retrying {times_replayed} times won't fix configuration issues.")
+                            actions.append("2. **Check reference data** - Verify master data and configuration.")
+                            if best_resolution:
+                                actions.append(f"3. **Apply historical resolution** - {best_resolution[:150]}...")
+                        else:
+                            if best_resolution:
+                                actions.append(f"1. **Apply historical resolution** - {best_resolution[:150]}...")
+                            actions.append(f"2. **Stop futile retries** - After {times_replayed} retries, manual intervention is needed.")
+                            actions.append("3. **Investigate root cause** - Use the exception details and similar cases as guidance.")
+
+                        for action in actions:
+                            st.markdown(action)
+
+                        # Additional context
+                        if times_replayed > 10:
+                            st.warning(f"⚠️ **Critical:** This exception has been retried {times_replayed} times. Immediate action is required to prevent resource waste and system degradation.")
+
+                        # Link to full analysis
+                        st.markdown("---")
+                        st.markdown("💡 **Pro Tip:** Use the SQL queries above to investigate similar patterns in your database and identify systemic issues.")
+
                     else:
                         st.warning("No similar historical cases found. This may be a new type of exception.")
+                        st.markdown("### 🎯 Recommendation for New Exception Type")
+                        st.info("""
+                        Since no similar cases were found:
+                        1. **Document thoroughly** - This is a new pattern that should be added to the knowledge base
+                        2. **Investigate root cause** - Review stacktrace, payload, and system logs
+                        3. **Stop retries if appropriate** - Evaluate if continued retries will help
+                        4. **Add resolution** - Once resolved, add this case to exception_history.csv for future reference
+                        """)
 
 # Tab 3: Historical Database
 with tab3:
