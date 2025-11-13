@@ -15,7 +15,7 @@ from mcp.server import Server
 from mcp.server.stdio import stdio_server
 from mcp.types import Tool, TextContent
 
-from llm_client import AzureOpenAIClient
+import llm_client
 from vector_store import ExceptionVectorStore
 
 # Constants
@@ -25,9 +25,15 @@ DATA_DIR = PROJECT_ROOT / "data"
 
 # Global instances
 app = Server("exception-analysis-server")
-llm_client = None
 vector_store = None
 config = None
+
+# AI config
+endpoint = None
+api_key = None
+api_version = None
+chat_deployment = None
+embedding_deployment = None
 
 
 def load_config():
@@ -79,23 +85,23 @@ def get_config_value(config_value: str, env_fallback: str = None) -> str:
 
 
 def initialize_clients():
-    """Initialize LLM client and vector store."""
-    global llm_client, vector_store
+    """Initialize AI config and vector store."""
+    global endpoint, api_key, api_version, chat_deployment, embedding_deployment, vector_store
 
     # Load config
     cfg = load_config()
 
     # Get Azure OpenAI credentials from config (supports direct values or ${ENV_VAR})
-    endpoint = get_config_value(
+    ep = get_config_value(
         cfg['azure_openai'].get('endpoint'),
         'AZURE_OPENAI_ENDPOINT'
     )
-    api_key = get_config_value(
+    key = get_config_value(
         cfg['azure_openai'].get('api_key'),
         'AZURE_OPENAI_KEY'
     )
 
-    if not endpoint or not api_key:
+    if not ep or not key:
         print("⚠️  Azure OpenAI credentials not configured")
         print("   Edit config.yaml and paste your credentials:")
         print("     azure_openai:")
@@ -105,18 +111,19 @@ def initialize_clients():
         print("   Advanced: Use ${AZURE_OPENAI_ENDPOINT} for environment variable references")
         return
 
-    # Initialize LLM client
-    llm_client = AzureOpenAIClient(
-        endpoint=endpoint,
-        api_key=api_key,
-        api_version=cfg['azure_openai']['api_version'],
-        chat_deployment=cfg['azure_openai']['models']['chat'],
-        embedding_deployment=cfg['azure_openai']['models']['embeddings']
-    )
+    # Store AI config in module-level variables
+    endpoint = ep
+    api_key = key
+    api_version = cfg['azure_openai']['api_version']
+    chat_deployment = cfg['azure_openai']['models']['chat']
+    embedding_deployment = cfg['azure_openai']['models']['embeddings']
 
     # Initialize vector store
     vector_store = ExceptionVectorStore(
-        llm_client=llm_client,
+        endpoint=endpoint,
+        api_key=api_key,
+        api_version=api_version,
+        embedding_deployment=embedding_deployment,
         persist_directory=cfg['vector_db']['persist_directory'],
         collection_name=cfg['vector_db']['collection_name']
     )
@@ -334,7 +341,7 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
         top_k = arguments.get('top_k', 3)
 
         # Check if vector store is initialized
-        if not vector_store or not llm_client:
+        if not vector_store or not endpoint or not api_key:
             return [TextContent(
                 type="text",
                 text="❌ Vector store not initialized. Edit config.yaml with your Azure OpenAI credentials and restart."
@@ -375,11 +382,11 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
     elif name == "analyzeExceptionWithAI":
         exception_id = arguments.get('exception_id')
 
-        # Check if LLM client is initialized
-        if not llm_client or not vector_store:
+        # Check if AI config is initialized
+        if not endpoint or not api_key or not vector_store:
             return [TextContent(
                 type="text",
-                text="❌ AI client not initialized. Edit config.yaml with your Azure OpenAI credentials and restart."
+                text="❌ AI configuration not initialized. Edit config.yaml with your Azure OpenAI credentials and restart."
             )]
 
         # Get exception
@@ -396,8 +403,16 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
         # Get schema
         schema = format_schema()
 
-        # Generate AI analysis
-        analysis = llm_client.analyze_exception(exception, similar, schema)
+        # Generate AI analysis using simple request/response call
+        analysis = llm_client.analyze_exception(
+            endpoint=endpoint,
+            api_key=api_key,
+            api_version=api_version,
+            deployment=chat_deployment,
+            exception_data=exception,
+            similar_cases=similar,
+            schema=schema
+        )
 
         return [TextContent(type="text", text=analysis)]
 

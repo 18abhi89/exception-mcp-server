@@ -12,7 +12,7 @@ import os
 import yaml
 from pathlib import Path
 
-from llm_client import AzureOpenAIClient
+import llm_client
 from vector_store import ExceptionVectorStore
 
 # Page config
@@ -61,7 +61,7 @@ def get_config_value(config_value: str, env_fallback: str = None) -> str:
 
 @st.cache_resource
 def initialize_clients():
-    """Initialize AI clients."""
+    """Initialize AI configuration and vector store."""
     # Load config
     if CONFIG_FILE.exists():
         with open(CONFIG_FILE, 'r') as f:
@@ -76,21 +76,29 @@ def initialize_clients():
             config['azure_openai'].get('api_key'),
             'AZURE_OPENAI_KEY'
         )
+        api_version = config['azure_openai'].get('api_version', '2024-02-15-preview')
+        chat_deployment = config['azure_openai']['models'].get('chat', 'gpt-4')
+        embedding_deployment = config['azure_openai']['models'].get('embeddings', 'text-embedding-ada-002')
     else:
         # Fallback to environment variables
         endpoint = os.getenv("AZURE_OPENAI_ENDPOINT")
         api_key = os.getenv("AZURE_OPENAI_KEY")
+        api_version = '2024-02-15-preview'
+        chat_deployment = 'gpt-4'
+        embedding_deployment = 'text-embedding-ada-002'
 
     if not endpoint or not api_key:
-        return None, None
+        return None, None, None, None, None, None
 
-    llm_client = AzureOpenAIClient(endpoint=endpoint, api_key=api_key)
     vector_store = ExceptionVectorStore(
-        llm_client=llm_client,
+        endpoint=endpoint,
+        api_key=api_key,
+        api_version=api_version,
+        embedding_deployment=embedding_deployment,
         persist_directory=VECTOR_DB_PATH
     )
 
-    return llm_client, vector_store
+    return endpoint, api_key, api_version, chat_deployment, embedding_deployment, vector_store
 
 
 @st.cache_data
@@ -109,7 +117,7 @@ def load_exceptions():
 
 
 # Initialize
-llm_client, vector_store = initialize_clients()
+endpoint, api_key, api_version, chat_deployment, embedding_deployment, vector_store = initialize_clients()
 all_exceptions = load_exceptions()
 
 # Title
@@ -117,7 +125,7 @@ st.title("🔍 Exception Analysis Framework")
 st.markdown("**AI-powered exception analysis with vector similarity search**")
 
 # Check if AI is available
-if not llm_client:
+if not endpoint or not api_key:
     st.warning("⚠️ Azure OpenAI credentials not configured. Edit `config.yaml` and paste your endpoint and API key.")
 
 # Tabs
@@ -192,8 +200,8 @@ with tab1:
 with tab2:
     st.header("🤖 AI-Powered Exception Analysis")
 
-    if not llm_client or not vector_store:
-        st.error("❌ AI clients not initialized. Edit `config.yaml` with your Azure OpenAI credentials and refresh page.")
+    if not endpoint or not api_key or not vector_store:
+        st.error("❌ AI configuration not initialized. Edit `config.yaml` with your Azure OpenAI credentials and refresh page.")
     else:
         # Vector DB stats
         vector_count = vector_store.count()
@@ -353,11 +361,15 @@ with tab2:
                             # Get schema
                             schema = "Database schema for trade_ingestion_exception table"
 
-                            # Generate analysis
+                            # Generate analysis using simple request/response call
                             analysis = llm_client.analyze_exception(
-                                selected_exception,
-                                similar,
-                                schema
+                                endpoint=endpoint,
+                                api_key=api_key,
+                                api_version=api_version,
+                                deployment=chat_deployment,
+                                exception_data=selected_exception,
+                                similar_cases=similar,
+                                schema=schema
                             )
 
                         # Display AI Generated Resolution (replaces placeholder)
