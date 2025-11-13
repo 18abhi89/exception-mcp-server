@@ -117,21 +117,6 @@ with tab1:
             height=400
         )
 
-        # Category breakdown
-        st.markdown("### 📈 Category Breakdown")
-        col1, col2 = st.columns(2)
-
-        with col1:
-            category_counts = df['exception_category'].value_counts()
-            st.bar_chart(category_counts)
-
-        with col2:
-            st.markdown("**Legend:**")
-            st.markdown("🔴 VALIDATION - Data/schema issues (retries won't help)")
-            st.markdown("🟡 SEQUENCING - Out-of-order messages (may need temporal parking)")
-            st.markdown("🟠 BUSINESS_LOGIC - Configuration/reference data issues")
-            st.markdown("🔵 INFRASTRUCTURE - Service/network issues (transient)")
-
 # Tab 2: Analyze Exception
 with tab2:
     st.header("🔬 Deep Dive Analysis")
@@ -184,6 +169,17 @@ with tab2:
                 st.markdown(f"**Comment:** {selected_exception['comment']}")
 
             st.markdown("---")
+
+            # Show query parameters in collapsible section
+            with st.expander("🔍 ChromaDB Query Parameters (Top 3 Similar Records)"):
+                st.markdown("**Similarity Search Parameters:**")
+                st.code(f"""error_message: {selected_exception.get('error_message', 'N/A')}
+exception_type: {selected_exception.get('exception_type', 'N/A')}
+exception_category: {selected_exception.get('exception_category', 'N/A')}
+exception_sub_category: {selected_exception.get('exception_sub_category', 'N/A')}
+stacktrace: {selected_exception.get('trace', 'N/A')[:200]}...
+n_results: 3""", language="yaml")
+                st.markdown("*ChromaDB uses semantic search to find the top 3 most similar historical exceptions based on the above parameters.*")
 
             # Analyze button
             if st.button("🔍 Analyze Exception", type="primary"):
