@@ -1,241 +1,268 @@
 #!/usr/bin/env python3
 """
-Streamlit UI for Exception Analysis
+Simple Streamlit UI for Exception Analysis
 
-Simple visualization of exception analysis with ChromaDB-powered similarity search.
+Shows how the AI-powered exception analysis framework works.
 """
 
 import streamlit as st
 import pandas as pd
+import csv
+import os
 from pathlib import Path
-import sys
 
-# Add parent to path
-sys.path.insert(0, str(Path(__file__).parent))
-
-from server import (
-    get_high_retry_exceptions,
-    load_exception_history,
-    exception_db,
-    analyze_exception_with_history,
-    EXCEPTIONS_CSV
-)
+from llm_client import AzureOpenAIClient
+from vector_store import ExceptionVectorStore
 
 # Page config
 st.set_page_config(
-    page_title="Exception Analysis Dashboard",
+    page_title="Exception Analysis Framework",
     page_icon="🔍",
     layout="wide"
 )
 
-# Load exception history on startup
+# Paths
+DATA_DIR = Path(__file__).parent / "data"
+CSV_PATH = DATA_DIR / "exceptions.csv"
+VECTOR_DB_PATH = "./chromadb_data"
+
+
 @st.cache_resource
-def init_database():
-    """Initialize exception database."""
-    load_exception_history()
-    return exception_db
+def initialize_clients():
+    """Initialize AI clients."""
+    endpoint = os.getenv("AZURE_OPENAI_ENDPOINT")
+    api_key = os.getenv("AZURE_OPENAI_KEY")
+
+    if not endpoint or not api_key:
+        return None, None
+
+    llm_client = AzureOpenAIClient(endpoint=endpoint, api_key=api_key)
+    vector_store = ExceptionVectorStore(
+        llm_client=llm_client,
+        persist_directory=VECTOR_DB_PATH
+    )
+
+    return llm_client, vector_store
+
+
+@st.cache_data
+def load_exceptions():
+    """Load exceptions from CSV."""
+    if not CSV_PATH.exists():
+        return []
+
+    exceptions = []
+    with open(CSV_PATH, 'r', encoding='utf-8') as f:
+        reader = csv.DictReader(f)
+        for row in reader:
+            exceptions.append(row)
+
+    return exceptions
+
 
 # Initialize
-db = init_database()
+llm_client, vector_store = initialize_clients()
+all_exceptions = load_exceptions()
 
 # Title
-st.title("🔍 Exception Analysis Dashboard")
-st.markdown("**Powered by ChromaDB Semantic Search**")
+st.title("🔍 Exception Analysis Framework")
+st.markdown("**AI-powered exception analysis with vector similarity search**")
 
-# Sidebar
-st.sidebar.header("Settings")
-retry_threshold = st.sidebar.slider(
-    "Retry Threshold",
-    min_value=1,
-    max_value=10,
-    value=5,
-    help="Show exceptions with retries greater than this value"
-)
+# Check if AI is available
+if not llm_client:
+    st.warning("⚠️ Azure OpenAI credentials not set. Set AZURE_OPENAI_ENDPOINT and AZURE_OPENAI_KEY environment variables.")
 
-# Main content
-tab1, tab2 = st.tabs(["📊 High Retry Exceptions", "🔬 Analyze Exception"])
+# Tabs
+tab1, tab2 = st.tabs(["📊 High Retry Exceptions", "🤖 AI Analysis"])
 
 # Tab 1: High Retry Exceptions
 with tab1:
-    st.header(f"Exceptions with > {retry_threshold} Retries")
+    st.header("High Retry Exceptions")
 
-    # Get high retry exceptions
-    exceptions = get_high_retry_exceptions(threshold=retry_threshold)
+    # Filter settings
+    col1, col2 = st.columns([1, 3])
+    with col1:
+        retry_threshold = st.slider(
+            "Minimum Retries",
+            min_value=1,
+            max_value=20,
+            value=5
+        )
 
-    if not exceptions:
-        st.info(f"No exceptions found with more than {retry_threshold} retries.")
+    # Filter exceptions
+    high_retry = [
+        exc for exc in all_exceptions
+        if int(exc.get('times_replayed', 0)) >= retry_threshold
+    ]
+
+    if not high_retry:
+        st.info(f"No exceptions with {retry_threshold}+ retries found")
     else:
-        st.success(f"Found **{len(exceptions)}** exceptions requiring attention")
+        st.success(f"Found **{len(high_retry)}** exceptions")
 
         # Create DataFrame
-        df = pd.DataFrame(exceptions)
+        df = pd.DataFrame(high_retry)
 
-        # Display summary metrics
+        # Display metrics
         col1, col2, col3, col4 = st.columns(4)
-
         with col1:
-            st.metric("Total Exceptions", len(df))
-
+            st.metric("Total", len(df))
         with col2:
             avg_retries = df['times_replayed'].astype(int).mean()
             st.metric("Avg Retries", f"{avg_retries:.1f}")
-
         with col3:
             open_count = len(df[df['status'] == 'OPEN'])
-            st.metric("Open Status", open_count)
-
+            st.metric("Open", open_count)
         with col4:
-            max_retries = df['times_replayed'].astype(int).max()
-            st.metric("Max Retries", max_retries)
+            closed_count = len(df[df['status'] == 'CLOSED'])
+            st.metric("Closed", closed_count)
 
         st.markdown("---")
 
-        # Display table with key fields
+        # Display table
         display_df = df[[
             'exception_id', 'event_id', 'error_message',
-            'exception_category', 'times_replayed', 'status',
-            'source_system', 'raising_system'
+            'exception_type', 'exception_category', 'status',
+            'times_replayed', 'source_system'
         ]].copy()
 
         display_df['times_replayed'] = display_df['times_replayed'].astype(int)
 
-        # Color code by category with simple mapping
-        category_colors = {
-            'VALIDATION': '#ffcccc',
-            'SEQUENCING': '#ffffcc',
-            'BUSINESS_LOGIC': '#ffebcc'
-        }
-
-        def highlight_category(row):
-            color = category_colors.get(row['exception_category'], '')
-            return [f'background-color: {color}'] * len(row) if color else [''] * len(row)
+        # Color coding
+        def highlight_status(row):
+            if row['status'] == 'OPEN':
+                return ['background-color: #ffcccc'] * len(row)
+            return ['background-color: #ccffcc'] * len(row)
 
         st.dataframe(
-            display_df.style.apply(highlight_category, axis=1),
+            display_df.style.apply(highlight_status, axis=1),
             use_container_width=True,
             height=400
         )
 
-# Tab 2: Analyze Exception
+# Tab 2: AI Analysis
 with tab2:
-    st.header("🔬 Deep Dive Analysis")
+    st.header("🤖 AI-Powered Exception Analysis")
 
-    # Get all exceptions for selection
-    exceptions = get_high_retry_exceptions(threshold=0)  # Get all
+    if not llm_client or not vector_store:
+        st.error("❌ AI clients not initialized. Set environment variables and refresh page.")
+    else:
+        # Vector DB stats
+        vector_count = vector_store.count()
+        if vector_count == 0:
+            st.warning(f"⚠️ Vector database is empty. Run `python ingest.py` to load resolved exceptions.")
+        else:
+            st.info(f"📊 Vector database contains {vector_count} resolved exceptions")
 
-    if exceptions:
-        # Create selection dropdown
-        exception_options = {
-            f"{exc['event_id']} - {exc['error_message'][:50]}...": exc['exception_id']
-            for exc in exceptions
-        }
+        st.markdown("---")
 
-        selected_label = st.selectbox(
-            "Select an exception to analyze:",
-            options=list(exception_options.keys())
-        )
+        # Select exception
+        if not all_exceptions:
+            st.error("No exceptions found in CSV")
+        else:
+            # Create dropdown options
+            exception_options = {
+                f"{exc['event_id']} - {exc['error_message'][:60]}...": exc['exception_id']
+                for exc in all_exceptions
+            }
 
-        if selected_label:
-            exception_id = exception_options[selected_label]
-
-            # Find the full exception
-            selected_exception = next(
-                exc for exc in exceptions
-                if exc['exception_id'] == exception_id
+            selected_label = st.selectbox(
+                "Select an exception to analyze:",
+                options=list(exception_options.keys())
             )
 
-            # Display exception details
-            st.markdown("### Exception Details")
+            if selected_label:
+                exception_id = exception_options[selected_label]
 
-            col1, col2 = st.columns(2)
+                # Find the exception
+                selected_exception = next(
+                    exc for exc in all_exceptions
+                    if exc['exception_id'] == exception_id
+                )
 
-            with col1:
-                st.markdown(f"**Event ID:** `{selected_exception['event_id']}`")
-                st.markdown(f"**Exception ID:** `{selected_exception['exception_id']}`")
-                st.markdown(f"**Category:** {selected_exception['exception_category']}")
-                st.markdown(f"**Type:** {selected_exception['exception_type']}")
+                # Display exception details
+                st.markdown("### Exception Details")
 
-            with col2:
-                st.markdown(f"**Times Replayed:** {selected_exception['times_replayed']}")
-                st.markdown(f"**Status:** {selected_exception['status']}")
-                st.markdown(f"**Source:** {selected_exception['source_system']}")
-                st.markdown(f"**Raising System:** {selected_exception['raising_system']}")
+                col1, col2 = st.columns(2)
+                with col1:
+                    st.markdown(f"**Event ID:** `{selected_exception['event_id']}`")
+                    st.markdown(f"**Exception ID:** `{selected_exception['exception_id']}`")
+                    st.markdown(f"**Type:** {selected_exception['exception_type']}")
+                    st.markdown(f"**Category:** {selected_exception['exception_category']}")
 
-            st.markdown(f"**Error Message:**")
-            st.error(selected_exception['error_message'])
+                with col2:
+                    st.markdown(f"**Status:** {selected_exception['status']}")
+                    st.markdown(f"**Times Replayed:** {selected_exception['times_replayed']}")
+                    st.markdown(f"**Source:** {selected_exception['source_system']}")
+                    st.markdown(f"**Raising System:** {selected_exception['raising_system']}")
 
-            if selected_exception.get('comment'):
-                st.markdown(f"**Comment:** {selected_exception['comment']}")
+                st.markdown("**Error Message:**")
+                st.error(selected_exception['error_message'])
 
-            st.markdown("---")
+                st.markdown("**Stack Trace:**")
+                with st.expander("Show stack trace"):
+                    st.code(selected_exception.get('trace', 'No trace available'), language="text")
 
-            # Show SQL query in collapsible section
-            with st.expander("📋 SQL Query for Top 3 Similar Records"):
-                st.markdown("**PostgreSQL Query to fetch similar historical exceptions:**")
+                st.markdown("---")
 
-                # Escape single quotes for SQL
-                error_msg = selected_exception.get('error_message', '').replace("'", "''")
-                exc_type = selected_exception.get('exception_type', '')
-                exc_category = selected_exception.get('exception_category', '')
-                exc_sub_category = selected_exception.get('exception_sub_category', '')
+                # Analyze button
+                if st.button("🔍 Analyze with AI", type="primary", use_container_width=True):
+                    if vector_count == 0:
+                        st.error("Cannot analyze: Vector database is empty. Run `python ingest.py` first.")
+                    else:
+                        with st.spinner("Finding similar exceptions..."):
+                            # Find similar
+                            similar = vector_store.find_similar(
+                                exception_id,
+                                selected_exception,
+                                top_k=3
+                            )
 
-                sql_query = f"""SELECT
-    exception_id,
-    event_id,
-    error_message,
-    exception_type,
-    exception_category,
-    exception_sub_category,
-    resolution,
-    similarity_score
-FROM (
-    SELECT
-        eh.*,
-        (
-            -- Text similarity using pg_trgm extension
-            SIMILARITY(eh.error_message, '{error_msg[:100]}') * 0.4 +
-            SIMILARITY(eh.trace, '{selected_exception.get('trace', '')[:100]}') * 0.6 +
-            -- Exact match bonuses
-            CASE WHEN eh.exception_type = '{exc_type}' THEN 0.2 ELSE 0 END +
-            CASE WHEN eh.exception_category = '{exc_category}' THEN 0.15 ELSE 0 END +
-            CASE WHEN eh.exception_sub_category = '{exc_sub_category}' THEN 0.1 ELSE 0 END
-        ) AS similarity_score
-    FROM exception_history eh
-    WHERE
-        eh.resolution IS NOT NULL
-        AND eh.resolution != ''
-        -- Filter for same category for better relevance
-        AND eh.exception_category = '{exc_category}'
-) ranked
-WHERE similarity_score > 0.3
-ORDER BY similarity_score DESC
-LIMIT 3;"""
+                            if not similar:
+                                st.warning("No similar exceptions found")
+                            else:
+                                st.markdown("### 📊 Similar Historical Cases")
 
-                st.code(sql_query, language="sql")
-                st.markdown("""
-                **Query Explanation:**
-                - Uses PostgreSQL `pg_trgm` extension for text similarity
-                - Weighs stacktrace (60%) more than error message (40%)
-                - Adds bonus points for exact matches on type/category
-                - Filters for same exception_category for relevance
-                - Returns top 3 with similarity score > 0.3
-                """)
+                                for i, sim in enumerate(similar, 1):
+                                    metadata = sim.get('metadata', {})
+                                    similarity = sim.get('similarity', 0) * 100
 
-            # Analyze button
-            if st.button("🔍 Analyze Exception", type="primary"):
-                with st.spinner("Analyzing..."):
-                    analysis = analyze_exception_with_history(selected_exception)
-                    st.markdown(analysis)
+                                    with st.expander(f"Similar Case {i} - {similarity:.1f}% match"):
+                                        st.markdown(f"**Type:** {metadata.get('exception_type', 'N/A')}")
+                                        st.markdown(f"**Category:** {metadata.get('exception_category', 'N/A')}")
+                                        st.markdown(f"**Error:** {metadata.get('error_message', 'N/A')[:200]}...")
+                                        st.markdown(f"**Resolution:** {metadata.get('remarks', 'No remarks')}")
+
+                        st.markdown("---")
+
+                        with st.spinner("Generating AI analysis..."):
+                            # Get schema
+                            schema = "Database schema for trade_ingestion_exception table"
+
+                            # Generate analysis
+                            analysis = llm_client.analyze_exception(
+                                selected_exception,
+                                similar,
+                                schema
+                            )
+
+                            st.markdown("### 🎯 AI Analysis")
+                            st.markdown(analysis)
 
 # Footer
 st.sidebar.markdown("---")
 st.sidebar.markdown("""
 ### About
-Exception Analysis Dashboard using:
-- **ChromaDB** for semantic search
-- **MCP Server** for tool integration
-- **Streamlit** for visualization
 
-Find similar exceptions and their resolutions
-to stop futile retries and resolve issues faster.
+This framework demonstrates:
+- **Vector similarity search** using ChromaDB
+- **AI-powered analysis** with Azure OpenAI
+- **Simple architecture** that works across projects
+
+### Setup
+1. Set environment variables:
+   - `AZURE_OPENAI_ENDPOINT`
+   - `AZURE_OPENAI_KEY`
+2. Run `python ingest.py` to load data
+3. Run `streamlit run streamlit_app_new.py`
 """)
