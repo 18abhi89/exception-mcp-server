@@ -10,9 +10,11 @@
 # 1. Install dependencies
 pip install -r requirements.txt
 
-# 2. Set credentials
-export AZURE_OPENAI_ENDPOINT='your-endpoint'
-export AZURE_OPENAI_KEY='your-key'
+# 2. Configure credentials
+# Edit config.yaml and paste your Azure OpenAI endpoint and API key:
+#   azure_openai:
+#     endpoint: "https://your-resource.openai.azure.com/"
+#     api_key: "your-api-key-here"
 
 # 3. Run tests
 python test_framework.py

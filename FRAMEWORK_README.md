@@ -45,12 +45,17 @@ exception-mcp-server/
 pip install -r requirements.txt
 ```
 
-### 2. Set Azure OpenAI Credentials
+### 2. Configure Azure OpenAI Credentials
 
-```bash
-export AZURE_OPENAI_ENDPOINT='https://your-resource.openai.azure.com/'
-export AZURE_OPENAI_KEY='your-api-key-here'
+Edit `config.yaml` and paste your credentials:
+
+```yaml
+azure_openai:
+  endpoint: "https://your-resource.openai.azure.com/"  # Your Azure endpoint
+  api_key: "your-api-key-here"                          # Your API key
 ```
+
+**Advanced:** You can also use `${AZURE_OPENAI_ENDPOINT}` to reference environment variables.
 
 ### 3. Run Tests
 
@@ -100,14 +105,18 @@ database:
 ```
 
 #### 2. Azure OpenAI
+
+**Recommended approach** - paste your credentials directly:
 ```yaml
 azure_openai:
-  endpoint: "${AZURE_OPENAI_ENDPOINT}"
-  api_key: "${AZURE_OPENAI_KEY}"
+  endpoint: "https://your-resource.openai.azure.com/"
+  api_key: "your-api-key-here"
   models:
     chat: "gpt-4"
     embeddings: "text-embedding-ada-002"
 ```
+
+**Advanced:** You can also use `${AZURE_OPENAI_ENDPOINT}` for environment variable references. See [CONFIG_EXAMPLES.md](CONFIG_EXAMPLES.md) for details.
 
 #### 3. Schema (Copy-Paste from Your DB)
 ```yaml
@@ -338,9 +347,12 @@ pip install -r requirements.txt
 ```
 
 **"Azure credentials not set"**
-```bash
-export AZURE_OPENAI_ENDPOINT='your-endpoint'
-export AZURE_OPENAI_KEY='your-key'
+
+Edit `config.yaml` and paste your credentials:
+```yaml
+azure_openai:
+  endpoint: "https://your-resource.openai.azure.com/"
+  api_key: "your-api-key-here"
 ```
 
 ### Vector DB Empty
