@@ -53,7 +53,7 @@ retry_threshold = st.sidebar.slider(
 )
 
 # Main content
-tab1, tab2, tab3 = st.tabs(["📊 High Retry Exceptions", "🔬 Analyze Exception", "📚 Historical Database"])
+tab1, tab2 = st.tabs(["📊 High Retry Exceptions", "🔬 Analyze Exception"])
 
 # Tab 1: High Retry Exceptions
 with tab1:
@@ -99,17 +99,16 @@ with tab1:
 
         display_df['times_replayed'] = display_df['times_replayed'].astype(int)
 
-        # Color code by category
+        # Color code by category with simple mapping
+        category_colors = {
+            'VALIDATION': '#ffcccc',
+            'SEQUENCING': '#ffffcc',
+            'BUSINESS_LOGIC': '#ffebcc'
+        }
+
         def highlight_category(row):
-            category = row['exception_category']
-            if category == 'VALIDATION':
-                return ['background-color: #ffcccc'] * len(row)
-            elif category == 'SEQUENCING':
-                return ['background-color: #ffffcc'] * len(row)
-            elif category == 'BUSINESS_LOGIC':
-                return ['background-color: #ffebcc'] * len(row)
-            else:
-                return [''] * len(row)
+            color = category_colors.get(row['exception_category'], '')
+            return [f'background-color: {color}'] * len(row) if color else [''] * len(row)
 
         st.dataframe(
             display_df.style.apply(highlight_category, axis=1),
@@ -170,62 +169,63 @@ with tab2:
 
             st.markdown("---")
 
-            # Show query parameters in collapsible section
-            with st.expander("🔍 ChromaDB Query Parameters (Top 3 Similar Records)"):
-                st.markdown("**Similarity Search Parameters:**")
-                st.code(f"""error_message: {selected_exception.get('error_message', 'N/A')}
-exception_type: {selected_exception.get('exception_type', 'N/A')}
-exception_category: {selected_exception.get('exception_category', 'N/A')}
-exception_sub_category: {selected_exception.get('exception_sub_category', 'N/A')}
-stacktrace: {selected_exception.get('trace', 'N/A')[:200]}...
-n_results: 3""", language="yaml")
-                st.markdown("*ChromaDB uses semantic search to find the top 3 most similar historical exceptions based on the above parameters.*")
+            # Show SQL query in collapsible section
+            with st.expander("📋 SQL Query for Top 3 Similar Records"):
+                st.markdown("**PostgreSQL Query to fetch similar historical exceptions:**")
+
+                # Escape single quotes for SQL
+                error_msg = selected_exception.get('error_message', '').replace("'", "''")
+                exc_type = selected_exception.get('exception_type', '')
+                exc_category = selected_exception.get('exception_category', '')
+                exc_sub_category = selected_exception.get('exception_sub_category', '')
+
+                sql_query = f"""SELECT
+    exception_id,
+    event_id,
+    error_message,
+    exception_type,
+    exception_category,
+    exception_sub_category,
+    resolution,
+    similarity_score
+FROM (
+    SELECT
+        eh.*,
+        (
+            -- Text similarity using pg_trgm extension
+            SIMILARITY(eh.error_message, '{error_msg[:100]}') * 0.4 +
+            SIMILARITY(eh.trace, '{selected_exception.get('trace', '')[:100]}') * 0.6 +
+            -- Exact match bonuses
+            CASE WHEN eh.exception_type = '{exc_type}' THEN 0.2 ELSE 0 END +
+            CASE WHEN eh.exception_category = '{exc_category}' THEN 0.15 ELSE 0 END +
+            CASE WHEN eh.exception_sub_category = '{exc_sub_category}' THEN 0.1 ELSE 0 END
+        ) AS similarity_score
+    FROM exception_history eh
+    WHERE
+        eh.resolution IS NOT NULL
+        AND eh.resolution != ''
+        -- Filter for same category for better relevance
+        AND eh.exception_category = '{exc_category}'
+) ranked
+WHERE similarity_score > 0.3
+ORDER BY similarity_score DESC
+LIMIT 3;"""
+
+                st.code(sql_query, language="sql")
+                st.markdown("""
+                **Query Explanation:**
+                - Uses PostgreSQL `pg_trgm` extension for text similarity
+                - Weighs stacktrace (60%) more than error message (40%)
+                - Adds bonus points for exact matches on type/category
+                - Filters for same exception_category for relevance
+                - Returns top 3 with similarity score > 0.3
+                """)
 
             # Analyze button
             if st.button("🔍 Analyze Exception", type="primary"):
                 with st.spinner("Analyzing..."):
                     analysis = analyze_exception_with_history(selected_exception)
                     st.markdown(analysis)
-
-# Tab 3: Historical Database
-with tab3:
-    st.header("📚 Historical Exception Database")
-
-    st.markdown(f"""
-    **Total Historical Records:** {db.count()}
-
-    This database contains resolved exceptions with documented resolutions,
-    used for semantic similarity search to suggest fixes for current issues.
-    """)
-
-    # Show sample searches
-    st.markdown("### 🔎 Try Similarity Search")
-
-    sample_queries = [
-        "DELETE operation on non-existent trade",
-        "Schema validation failed missing field",
-        "Unsupported event type",
-        "Settlement date calculation failed"
-    ]
-
-    query = st.selectbox("Sample queries:", sample_queries)
-
-    if st.button("Search"):
-        with st.spinner("Searching..."):
-            results = db.find_similar(error_message=query, n_results=3)
-
-            st.markdown(f"**Query:** `{query}`")
-            st.markdown(f"**Found {len(results)} similar cases:**")
-
-            for i, result in enumerate(results, 1):
-                similarity = (1 - result['distance']) * 100
-                metadata = result.get('metadata', {})
-
-                st.markdown(f"**{i}. Similarity: {similarity:.1f}%**")
-                st.markdown(f"- Type: {metadata.get('exception_type', 'N/A')}")
-                st.markdown(f"- Category: {metadata.get('exception_category', 'N/A')}")
-                st.markdown(f"- Resolution: {metadata.get('resolution', 'N/A')[:100]}...")
-                st.markdown("---")
 
 # Footer
 st.sidebar.markdown("---")

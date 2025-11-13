@@ -1,4 +1,19 @@
+# Core dependencies
+requests>=2.31.0
+pyyaml>=6.0.1
+
+# Vector database
+chromadb>=0.4.18
+
+# MCP Server
 mcp>=1.0.0
-chromadb>=0.4.0
+
+# UI
 streamlit>=1.28.0
 pandas>=2.0.0
+
+# PostgreSQL (if connecting to actual DB)
+psycopg2-binary>=2.9.9
+
+# Development
+pytest>=7.4.0

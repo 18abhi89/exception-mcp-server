@@ -1,0 +1,78 @@
+project:
+  name: "trade-ingestion-exceptions"
+  description: "Exception analysis framework for trade ingestion microservices"
+
+# Database connection (PostgreSQL - Java microservices DB)
+database:
+  type: "postgres"
+  host: "${DB_HOST:localhost}"
+  port: 5432
+  database: "${DB_NAME:trade_db}"
+  user: "${DB_USER:postgres}"
+  password: "${DB_PASSWORD:postgres}"
+
+# Azure OpenAI configuration
+azure_openai:
+  endpoint: "${AZURE_OPENAI_ENDPOINT}"
+  api_key: "${AZURE_OPENAI_KEY}"
+  api_version: "2024-02-15-preview"
+
+  models:
+    chat: "gpt-4"  # or gpt-35-turbo for cost savings
+    embeddings: "text-embedding-ada-002"
+
+# Vector database (ChromaDB for similarity search)
+vector_db:
+  provider: "chromadb"
+  persist_directory: "./chromadb_data"
+  collection_name: "resolved_exceptions"
+
+  # Fields to combine for embedding (concatenated into single text)
+  embedding_fields:
+    - error_message
+    - exception_type
+    - trace
+
+  # Metadata fields for filtering
+  metadata_fields:
+    - exception_type
+    - exception_category
+    - exception_sub_category
+    - source_system
+    - raising_system
+
+# Database schema (copy-paste from your DB)
+schema:
+  trade_ingestion_exception: |
+    CREATE TABLE trade_ingestion_exception (
+        id BIGSERIAL PRIMARY KEY,
+        created_date TIMESTAMP,
+        destination VARCHAR(255),
+        error_message TEXT,
+        event_id VARCHAR(255),
+        event_id_type VARCHAR(50),
+        event_type VARCHAR(255),
+        event_version INTEGER,
+        exception_category VARCHAR(255),
+        exception_sub_category VARCHAR(255),
+        exception_type VARCHAR(255),
+        host VARCHAR(255),
+        is_active BOOLEAN,
+        messaging_platform_type VARCHAR(255),
+        raising_system VARCHAR(255),
+        source_system VARCHAR(255),
+        status VARCHAR(255),
+        times_replayed INTEGER,
+        updated_date TIMESTAMP,
+        updated_by VARCHAR(255),
+        comment TEXT,
+        trace TEXT,
+        payload TEXT,
+        exception_id UUID,
+        remarks TEXT
+    );
+
+    CREATE INDEX idx_exception_id ON trade_ingestion_exception(exception_id);
+    CREATE INDEX idx_event_id ON trade_ingestion_exception(event_id);
+    CREATE INDEX idx_status ON trade_ingestion_exception(status);
+    CREATE INDEX idx_created_date ON trade_ingestion_exception(created_date);
