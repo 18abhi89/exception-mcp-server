@@ -116,10 +116,10 @@ def analyze_exception_with_history(exception: Dict[str, Any]) -> str:
     exception_type = exception.get('exception_type', '')
     exception_category = exception.get('exception_category', '')
     exception_sub_category = exception.get('exception_sub_category', '')
-    stacktrace = exception.get('trace', '')  # Use 'trace' field from current exceptions
-    times_replayed = exception.get('times_replayed', 0)
+    stacktrace = exception.get('trace', '')
+    times_replayed = int(exception.get('times_replayed', 0))
 
-    # Find similar exceptions using stacktrace and metadata
+    # Find similar exceptions
     similar = exception_db.find_similar(
         error_message=error_message,
         exception_type=exception_type,
@@ -129,51 +129,50 @@ def analyze_exception_with_history(exception: Dict[str, Any]) -> str:
         n_results=3
     )
 
-    # Build analysis
-    analysis = f"""## Exception Analysis
+    # Build clean, production-grade analysis
+    analysis = f"""### Root Cause Analysis
 
-**Current Exception:**
-- Event ID: {exception.get('event_id', 'N/A')}
-- Error: {error_message}
-- Type: {exception_type}
-- Category: {exception_category}
-- Times Replayed: {times_replayed}
-- Source System: {exception.get('source_system', 'N/A')}
-- Raising System: {exception.get('raising_system', 'N/A')}
-
-**Why It's Failing After {times_replayed} Retries:**
+**Why it's failing after {times_replayed} retries:**
 
 """
 
+    # Category-specific root cause
+    if exception_category == "VALIDATION":
+        analysis += "❌ **VALIDATION Error** - Data or schema issue that retries cannot fix.\n"
+        analysis += "The incoming data is malformed or doesn't match the expected schema. "
+        analysis += "Retrying will not resolve this - the source data or validation rules must be corrected.\n\n"
+    elif exception_category == "SEQUENCING":
+        analysis += "⚠️ **SEQUENCING Error** - Out-of-order message delivery.\n"
+        analysis += "Messages are arriving in the wrong sequence (e.g., DELETE before NEW). "
+        analysis += "Retries may not help if dependent messages haven't arrived. Consider temporal parking/delayed retry.\n\n"
+    elif exception_category == "BUSINESS_LOGIC":
+        analysis += "🔧 **BUSINESS LOGIC Error** - Configuration or reference data issue.\n"
+        analysis += "Business rules are being violated due to missing configuration or stale reference data. "
+        analysis += "Retries won't help - update configuration or refresh reference data.\n\n"
+    else:
+        analysis += f"Error Category: {exception_category}\n"
+        analysis += "Investigate the specific error type and context for root cause.\n\n"
+
+    # Similar cases with resolutions
     if similar:
-        analysis += "Based on similar historical cases:\n\n"
+        analysis += "### Similar Historical Cases & Resolutions\n\n"
         for i, sim in enumerate(similar, 1):
             metadata = sim.get('metadata', {})
             resolution = metadata.get('resolution', 'No resolution recorded')
-            analysis += f"### Similar Case {i} (Similarity: {1 - sim['distance']:.2%})\n"
-            analysis += f"- **Exception Type:** {metadata.get('exception_type', 'N/A')}\n"
-            analysis += f"- **Resolution:** {resolution}\n\n"
+            similarity = (1 - sim['distance']) * 100
 
-        # Form thesis
-        analysis += "\n**Thesis:**\n"
-        analysis += f"This exception has been retried {times_replayed} times without success. "
+            analysis += f"**{i}. {metadata.get('exception_type', 'N/A')}** ({similarity:.0f}% match)\n"
+            analysis += f"**Resolution:** {resolution}\n\n"
 
-        if exception_category == "VALIDATION":
-            analysis += "This is a VALIDATION error, which typically requires data or schema fixes rather than retries. "
-            analysis += "Retrying won't help unless the underlying data issue is corrected.\n"
-        elif exception_category == "SEQUENCING":
-            analysis += "This is a SEQUENCING error indicating out-of-order message delivery. "
-            analysis += "Retries may not help if the dependent message hasn't arrived yet. Consider implementing temporal parking.\n"
-        elif exception_category == "BUSINESS_LOGIC":
-            analysis += "This is a BUSINESS_LOGIC error that likely requires configuration or reference data updates. "
-            analysis += "Simple retries won't resolve the underlying business rule violation.\n"
-
-        if similar:
-            analysis += f"\nBased on {len(similar)} similar historical case(s), recommended actions are listed above.\n"
+        analysis += "\n### Recommended Action\n"
+        analysis += "Stop retrying this exception. Apply the resolution from the most similar case above.\n"
     else:
-        analysis += "No similar historical cases found. This may be a new type of exception.\n"
-        analysis += f"\n**General Guidance for {exception_category} errors:**\n"
-        analysis += "Check the exception guide resource for investigation steps.\n"
+        analysis += "### Similar Historical Cases\n"
+        analysis += "No similar cases found. This appears to be a new type of exception.\n\n"
+        analysis += "### Recommended Action\n"
+        analysis += f"1. Investigate the {exception_category} error in detail\n"
+        analysis += "2. Document the resolution for future reference\n"
+        analysis += "3. Add to exception history once resolved\n"
 
     return analysis
 

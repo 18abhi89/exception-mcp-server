@@ -186,59 +186,10 @@ with tab2:
             st.markdown("---")
 
             # Analyze button
-            if st.button("🔍 Analyze with Historical Data", type="primary"):
-                with st.spinner("Analyzing exception and finding similar cases..."):
-                    # Perform analysis
+            if st.button("🔍 Analyze Exception", type="primary"):
+                with st.spinner("Analyzing..."):
                     analysis = analyze_exception_with_history(selected_exception)
-
-                    # Display analysis
-                    st.markdown("### 📋 Analysis Results")
                     st.markdown(analysis)
-
-                    # Show similar cases with confidence scores
-                    st.markdown("---")
-                    st.markdown("### 🎯 Similar Historical Cases (Confidence Scores)")
-
-                    similar = db.find_similar(
-                        error_message=selected_exception['error_message'],
-                        exception_type=selected_exception['exception_type'],
-                        exception_category=selected_exception['exception_category'],
-                        exception_sub_category=selected_exception.get('exception_sub_category', ''),
-                        stacktrace=selected_exception.get('trace', ''),
-                        n_results=5
-                    )
-
-                    if similar:
-                        for i, sim in enumerate(similar, 1):
-                            confidence = (1 - sim['distance']) * 100
-                            metadata = sim.get('metadata', {})
-
-                            # Confidence indicator
-                            if confidence >= 80:
-                                confidence_color = "🟢"
-                                confidence_label = "High Confidence"
-                            elif confidence >= 60:
-                                confidence_color = "🟡"
-                                confidence_label = "Medium Confidence"
-                            else:
-                                confidence_color = "🔴"
-                                confidence_label = "Low Confidence"
-
-                            with st.expander(
-                                f"{confidence_color} Case {i}: {confidence:.1f}% Similar - {confidence_label}",
-                                expanded=(i == 1)  # Expand first one
-                            ):
-                                st.progress(confidence / 100)
-
-                                st.markdown(f"**Exception Type:** {metadata.get('exception_type', 'N/A')}")
-                                st.markdown(f"**Category:** {metadata.get('exception_category', 'N/A')}")
-                                st.markdown(f"**Sub-Category:** {metadata.get('exception_sub_category', 'N/A')}")
-                                st.markdown(f"**Event ID:** {metadata.get('event_id', 'N/A')}")
-
-                                st.markdown("**Resolution:**")
-                                st.success(metadata.get('resolution', 'No resolution recorded'))
-                    else:
-                        st.warning("No similar historical cases found. This may be a new type of exception.")
 
 # Tab 3: Historical Database
 with tab3:
