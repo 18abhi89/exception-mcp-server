@@ -229,27 +229,107 @@ with tab2:
                 )
 
                 # Display exception details
-                st.markdown("### Exception Details")
+                st.markdown("### 📋 Exception Details")
 
-                col1, col2 = st.columns(2)
+                # Key identifiers
+                col1, col2, col3 = st.columns(3)
                 with col1:
                     st.markdown(f"**Event ID:** `{selected_exception['event_id']}`")
-                    st.markdown(f"**Exception ID:** `{selected_exception['exception_id']}`")
-                    st.markdown(f"**Type:** {selected_exception['exception_type']}")
-                    st.markdown(f"**Category:** {selected_exception['exception_category']}")
-
                 with col2:
-                    st.markdown(f"**Status:** {selected_exception['status']}")
-                    st.markdown(f"**Times Replayed:** {selected_exception['times_replayed']}")
-                    st.markdown(f"**Source:** {selected_exception['source_system']}")
-                    st.markdown(f"**Raising System:** {selected_exception['raising_system']}")
+                    st.markdown(f"**Exception ID:** `{selected_exception['exception_id']}`")
+                with col3:
+                    status_color = "🟢" if selected_exception['status'] == 'CLOSED' else "🔴"
+                    st.markdown(f"**Status:** {status_color} {selected_exception['status']}")
 
-                st.markdown("**Error Message:**")
+                st.markdown("---")
+
+                # Exception classification
+                st.markdown("#### 🏷️ Classification")
+                col1, col2, col3 = st.columns(3)
+                with col1:
+                    st.markdown(f"**Type:** {selected_exception.get('exception_type', 'N/A')}")
+                with col2:
+                    st.markdown(f"**Category:** {selected_exception.get('exception_category', 'N/A')}")
+                with col3:
+                    st.markdown(f"**Sub-Category:** {selected_exception.get('exception_sub_category', 'N/A')}")
+
+                # System information
+                st.markdown("#### 🖥️ System Information")
+                col1, col2, col3, col4 = st.columns(4)
+                with col1:
+                    st.markdown(f"**Source:** {selected_exception.get('source_system', 'N/A')}")
+                with col2:
+                    st.markdown(f"**Raising System:** {selected_exception.get('raising_system', 'N/A')}")
+                with col3:
+                    st.markdown(f"**Host:** {selected_exception.get('host', 'N/A')}")
+                with col4:
+                    st.markdown(f"**Destination:** {selected_exception.get('destination', 'N/A')}")
+
+                # Event details
+                st.markdown("#### 📅 Event Details")
+                col1, col2, col3 = st.columns(3)
+                with col1:
+                    st.markdown(f"**Event Type:** {selected_exception.get('event_type', 'N/A')}")
+                with col2:
+                    st.markdown(f"**Event ID Type:** {selected_exception.get('event_id_type', 'N/A')}")
+                with col3:
+                    st.markdown(f"**Event Version:** {selected_exception.get('event_version', 'N/A')}")
+
+                # Replay information
+                st.markdown("#### 🔄 Replay & Status")
+                col1, col2, col3, col4 = st.columns(4)
+                with col1:
+                    st.markdown(f"**Times Replayed:** {selected_exception.get('times_replayed', 0)}")
+                with col2:
+                    st.markdown(f"**Is Active:** {selected_exception.get('is_active', 'N/A')}")
+                with col3:
+                    st.markdown(f"**Created:** {selected_exception.get('created_date', 'N/A')}")
+                with col4:
+                    st.markdown(f"**Updated:** {selected_exception.get('updated_date', 'N/A')}")
+
+                if selected_exception.get('updated_by'):
+                    st.markdown(f"**Updated By:** {selected_exception.get('updated_by')}")
+
+                if selected_exception.get('messaging_platform_type'):
+                    st.markdown(f"**Messaging Platform:** {selected_exception.get('messaging_platform_type')}")
+
+                st.markdown("---")
+
+                # Error message
+                st.markdown("#### ⚠️ Error Message")
                 st.error(selected_exception['error_message'])
 
-                st.markdown("**Stack Trace:**")
-                with st.expander("Show stack trace"):
-                    st.code(selected_exception.get('trace', 'No trace available'), language="text")
+                # Stack trace
+                st.markdown("#### 📚 Stack Trace")
+                st.code(selected_exception.get('trace', 'No trace available'), language="text", line_numbers=True)
+
+                # Comments/Remarks
+                if selected_exception.get('comment') or selected_exception.get('remarks'):
+                    st.markdown("#### 💬 Comments & Remarks")
+                    if selected_exception.get('comment'):
+                        st.info(f"**Comment:** {selected_exception.get('comment')}")
+                    if selected_exception.get('remarks'):
+                        st.success(f"**Resolution Remarks:** {selected_exception.get('remarks')}")
+
+                # Payload (if available)
+                if selected_exception.get('payload'):
+                    with st.expander("📦 View Payload"):
+                        st.code(selected_exception.get('payload'), language="json")
+
+                st.markdown("---")
+
+                # AI Generated Resolution placeholder
+                st.markdown("#### 🤖 AI Generated Resolution")
+                with st.container():
+                    st.info("""
+                    **Resolution Status:** Pending Analysis
+
+                    Click the "🔍 Analyze with AI" button below to generate an AI-powered resolution recommendation based on:
+                    - Similar historical exceptions
+                    - Stack trace analysis
+                    - Root cause identification
+                    - Recommended fixes with citations
+                    """)
 
                 st.markdown("---")
 
@@ -258,7 +338,10 @@ with tab2:
                     if vector_count == 0:
                         st.error("Cannot analyze: Vector database is empty. Run `python ingest.py` first.")
                     else:
-                        with st.spinner("Finding similar exceptions..."):
+                        # Clear the placeholder and show analysis
+                        st.markdown("---")
+
+                        with st.spinner("🔍 Finding similar exceptions..."):
                             # Find similar
                             similar = vector_store.find_similar(
                                 exception_id,
@@ -266,24 +349,7 @@ with tab2:
                                 top_k=3
                             )
 
-                            if not similar:
-                                st.warning("No similar exceptions found")
-                            else:
-                                st.markdown("### 📊 Similar Historical Cases")
-
-                                for i, sim in enumerate(similar, 1):
-                                    metadata = sim.get('metadata', {})
-                                    similarity = sim.get('similarity', 0) * 100
-
-                                    with st.expander(f"Similar Case {i} - {similarity:.1f}% match"):
-                                        st.markdown(f"**Type:** {metadata.get('exception_type', 'N/A')}")
-                                        st.markdown(f"**Category:** {metadata.get('exception_category', 'N/A')}")
-                                        st.markdown(f"**Error:** {metadata.get('error_message', 'N/A')[:200]}...")
-                                        st.markdown(f"**Resolution:** {metadata.get('remarks', 'No remarks')}")
-
-                        st.markdown("---")
-
-                        with st.spinner("Generating AI analysis..."):
+                        with st.spinner("🤖 Generating AI-powered resolution..."):
                             # Get schema
                             schema = "Database schema for trade_ingestion_exception table"
 
@@ -294,8 +360,47 @@ with tab2:
                                 schema
                             )
 
-                            st.markdown("### 🎯 AI Analysis")
+                        # Display AI Generated Resolution (replaces placeholder)
+                        st.markdown("### 🤖 AI Generated Resolution")
+
+                        # Resolution content
+                        with st.container():
+                            st.success("**Resolution Status:** ✅ Analysis Complete")
                             st.markdown(analysis)
+
+                        st.markdown("---")
+
+                        # Citations section
+                        if similar:
+                            st.markdown("### 📚 Citations - Similar Historical Cases")
+                            st.caption("The AI analysis above is based on the following resolved exceptions:")
+
+                            for i, sim in enumerate(similar, 1):
+                                metadata = sim.get('metadata', {})
+                                similarity = sim.get('similarity', 0) * 100
+
+                                with st.expander(f"📖 Citation [{i}] - {similarity:.1f}% similarity match", expanded=False):
+                                    col1, col2 = st.columns(2)
+                                    with col1:
+                                        st.markdown(f"**Exception Type:** {metadata.get('exception_type', 'N/A')}")
+                                        st.markdown(f"**Category:** {metadata.get('exception_category', 'N/A')}")
+                                        st.markdown(f"**Sub-Category:** {metadata.get('exception_sub_category', 'N/A')}")
+                                    with col2:
+                                        st.markdown(f"**Source System:** {metadata.get('source_system', 'N/A')}")
+                                        st.markdown(f"**Raising System:** {metadata.get('raising_system', 'N/A')}")
+                                        st.markdown(f"**Similarity Score:** {similarity:.2f}%")
+
+                                    st.markdown("**Error Message:**")
+                                    st.text(metadata.get('error_message', 'N/A'))
+
+                                    st.markdown("**Resolution Applied:**")
+                                    resolution = metadata.get('remarks', 'No resolution remarks available')
+                                    st.info(resolution)
+
+                                    if metadata.get('exception_id'):
+                                        st.caption(f"Exception ID: `{metadata.get('exception_id')}`")
+                        else:
+                            st.warning("⚠️ No similar historical cases found. The AI analysis above is based on general exception patterns and best practices.")
 
 # Footer
 st.sidebar.markdown("---")
