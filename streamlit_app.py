@@ -9,6 +9,7 @@ import streamlit as st
 import pandas as pd
 import csv
 import os
+import yaml
 from pathlib import Path
 
 from llm_client import AzureOpenAIClient
@@ -25,13 +26,60 @@ st.set_page_config(
 DATA_DIR = Path(__file__).parent / "data"
 CSV_PATH = DATA_DIR / "exceptions.csv"
 VECTOR_DB_PATH = "./chromadb_data"
+CONFIG_FILE = Path(__file__).parent / "config.yaml"
+
+
+def get_config_value(config_value: str, env_fallback: str = None) -> str:
+    """
+    Get configuration value, supporting both direct values and ${ENV_VAR} substitution.
+
+    Args:
+        config_value: Value from config (can be direct value or ${ENV_VAR})
+        env_fallback: Environment variable name to check as fallback
+
+    Returns:
+        Resolved value or None
+    """
+    if config_value:
+        # Check if it's an environment variable reference
+        if config_value.startswith("${") and config_value.endswith("}"):
+            env_var = config_value[2:-1]
+            # Support default values: ${VAR:default}
+            if ':' in env_var:
+                var_name, default = env_var.split(':', 1)
+                return os.getenv(var_name, default)
+            return os.getenv(env_var)
+        # Direct value
+        return config_value
+
+    # Fallback to environment variable
+    if env_fallback:
+        return os.getenv(env_fallback)
+
+    return None
 
 
 @st.cache_resource
 def initialize_clients():
     """Initialize AI clients."""
-    endpoint = os.getenv("AZURE_OPENAI_ENDPOINT")
-    api_key = os.getenv("AZURE_OPENAI_KEY")
+    # Load config
+    if CONFIG_FILE.exists():
+        with open(CONFIG_FILE, 'r') as f:
+            config = yaml.safe_load(f)
+
+        # Get credentials from config (supports direct values or ${ENV_VAR})
+        endpoint = get_config_value(
+            config['azure_openai'].get('endpoint'),
+            'AZURE_OPENAI_ENDPOINT'
+        )
+        api_key = get_config_value(
+            config['azure_openai'].get('api_key'),
+            'AZURE_OPENAI_KEY'
+        )
+    else:
+        # Fallback to environment variables
+        endpoint = os.getenv("AZURE_OPENAI_ENDPOINT")
+        api_key = os.getenv("AZURE_OPENAI_KEY")
 
     if not endpoint or not api_key:
         return None, None

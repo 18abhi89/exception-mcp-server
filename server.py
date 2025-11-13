@@ -43,6 +43,41 @@ def load_config():
     return config
 
 
+def get_config_value(config_value: str, env_fallback: str = None) -> str:
+    """
+    Get configuration value, supporting both direct values and ${ENV_VAR} substitution.
+
+    Args:
+        config_value: Value from config (can be direct value or ${ENV_VAR})
+        env_fallback: Environment variable name to check as fallback
+
+    Returns:
+        Resolved value or None
+
+    Examples:
+        "https://my-endpoint.com" -> returns as-is
+        "${AZURE_OPENAI_ENDPOINT}" -> returns value of AZURE_OPENAI_ENDPOINT env var
+        None with env_fallback -> returns env var value
+    """
+    if config_value:
+        # Check if it's an environment variable reference
+        if config_value.startswith("${") and config_value.endswith("}"):
+            env_var = config_value[2:-1]
+            # Support default values: ${VAR:default}
+            if ':' in env_var:
+                var_name, default = env_var.split(':', 1)
+                return os.getenv(var_name, default)
+            return os.getenv(env_var)
+        # Direct value
+        return config_value
+
+    # Fallback to environment variable
+    if env_fallback:
+        return os.getenv(env_fallback)
+
+    return None
+
+
 def initialize_clients():
     """Initialize LLM client and vector store."""
     global llm_client, vector_store
@@ -50,13 +85,25 @@ def initialize_clients():
     # Load config
     cfg = load_config()
 
-    # Get Azure OpenAI credentials
-    endpoint = os.getenv("AZURE_OPENAI_ENDPOINT")
-    api_key = os.getenv("AZURE_OPENAI_KEY")
+    # Get Azure OpenAI credentials from config (supports direct values or ${ENV_VAR})
+    endpoint = get_config_value(
+        cfg['azure_openai'].get('endpoint'),
+        'AZURE_OPENAI_ENDPOINT'
+    )
+    api_key = get_config_value(
+        cfg['azure_openai'].get('api_key'),
+        'AZURE_OPENAI_KEY'
+    )
 
     if not endpoint or not api_key:
-        print("Warning: AZURE_OPENAI_ENDPOINT and AZURE_OPENAI_KEY not set")
-        print("AI-powered tools will not work until credentials are provided")
+        print("⚠️  Azure OpenAI credentials not configured")
+        print("   Set in config.yaml:")
+        print("     azure_openai:")
+        print("       endpoint: 'https://your-resource.openai.azure.com/'")
+        print("       api_key: 'your-api-key'")
+        print("   OR use environment variables:")
+        print("     export AZURE_OPENAI_ENDPOINT='...'")
+        print("     export AZURE_OPENAI_KEY='...'")
         return
 
     # Initialize LLM client
