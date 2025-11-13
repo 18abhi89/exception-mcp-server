@@ -1,11 +1,487 @@
-id,created_date,destination,error_message,event_id,event_id_type,event_type,event_version,exception_category,exception_sub_category,exception_type,host,is_active,messaging_platform_type,raising_system,source_system,status,times_replayed,updated_date,updated_by,comment,trace,payload,exception_id
-1,2025-01-10 10:15:00,trade-topic,CANCEL event received before NEW event for trade ID TRD-12345,EVT-001,UUID,CANCEL,1,SEQUENCING,OUT_OF_ORDER,OrderingException,host-01,true,KAFKA,trade-ingestion-service,ATLAS,OPEN,0,2025-01-10 10:15:00,system,,java.lang.IllegalStateException: Trade not found,"{""tradeId"":""TRD-12345""}",550e8400-e29b-41d4-a716-446655440001
-2,2025-01-09 14:20:00,trade-topic,Unsupported event type 'TRANSFER' not in allowed list,EVT-006,UUID,TRANSFER,1,VALIDATION,INVALID_EVENT,ValidationException,host-02,true,KAFKA,trade-ingestion-service,ATLAS,OPEN,6,2025-01-10 09:00:00,system,Still failing after 6 retries,java.lang.IllegalArgumentException: Invalid event type,"{""eventType"":""TRANSFER""}",550e8400-e29b-41d4-a716-446655440002
-3,2025-01-08 09:30:00,trade-topic,Duplicate event_id detected - message already processed,EVT-011,UUID,NEW,1,DUPLICATE,PREVIOUSLY_PROCESSED_MESSAGE,DuplicateException,host-03,true,KAFKA,trade-ingestion-service,ATLAS,CLOSED,0,2025-01-08 09:35:00,system,Auto-resolved,com.trading.DuplicateMessageException,"{""eventId"":""EVT-011""}",550e8400-e29b-41d4-a716-446655440003
-4,2025-01-07 11:45:00,trade-topic,Version 5 received before version 4 for trade ID TRD-67890,EVT-002,UUID,MODIFY,5,SEQUENCING,OUT_OF_ORDER,OrderingException,host-01,true,KAFKA,trade-ingestion-service,ATLAS,CLOSED,2,2025-01-07 12:00:00,john.doe,Resolved after replay,java.lang.IllegalStateException: Version mismatch,"{""tradeId"":""TRD-67890"",""version"":5}",550e8400-e29b-41d4-a716-446655440004
-5,2025-01-06 16:10:00,trade-consumer-topic,Schema validation failed: missing required field 'trade_date',EVT-007,UUID,NEW,1,VALIDATION,INVALID_EVENT,ValidationException,host-04,true,KAFKA,trade-consumer-service,trade-ingestion-service,OPEN,7,2025-01-10 08:30:00,system,Critical - needs investigation,javax.validation.ValidationException: Missing field,"{""event"":""incomplete""}",550e8400-e29b-41d4-a716-446655440005
-6,2025-01-05 13:25:00,trade-consumer-topic,Kafka replay detected: message already exists in database,EVT-012,UUID,NEW,1,DUPLICATE,PREVIOUSLY_PROCESSED_MESSAGE,DuplicateException,host-05,true,KAFKA,trade-consumer-service,trade-ingestion-service,OPEN,1,2025-01-05 13:30:00,system,,com.trading.DuplicateMessageException,"{""eventId"":""EVT-012""}",550e8400-e29b-41d4-a716-446655440006
-7,2025-01-04 08:50:00,trade-topic,DELETE operation on non-existent trade ID TRD-22222,EVT-004,UUID,DELETE,1,SEQUENCING,OUT_OF_ORDER,OrderingException,host-01,true,KAFKA,trade-ingestion-service,ATLAS,OPEN,8,2025-01-10 10:00:00,system,High retry count - investigate,java.lang.IllegalStateException: Trade not found,"{""tradeId"":""TRD-22222""}",550e8400-e29b-41d4-a716-446655440007
-8,2025-01-03 15:30:00,trade-consumer-topic,Settlement date calculation failed: invalid business day,EVT-020,UUID,NEW,1,BUSINESS_LOGIC,CALCULATION_ERROR,BusinessException,host-06,true,KAFKA,trade-consumer-service,trade-ingestion-service,OPEN,9,2025-01-10 09:45:00,system,Urgent - blocking settlements,java.time.DateTimeException: Invalid date,"{""tradeDate"":""2025-01-03""}",550e8400-e29b-41d4-a716-446655440008
-9,2025-01-02 12:15:00,trade-topic,Event type field is null or empty in message,EVT-009,UUID,UNKNOWN,1,VALIDATION,INVALID_EVENT,ValidationException,host-02,true,KAFKA,trade-ingestion-service,ATLAS,OPEN,0,2025-01-02 12:15:00,system,,java.lang.NullPointerException,"{""eventType"":null}",550e8400-e29b-41d4-a716-446655440009
-10,2025-01-01 10:00:00,trade-topic,MODIFY event received but base NEW event not found,EVT-003,UUID,MODIFY,1,SEQUENCING,OUT_OF_ORDER,OrderingException,host-01,true,KAFKA,trade-ingestion-service,ATLAS,OPEN,1,2025-01-01 10:05:00,system,,java.lang.IllegalStateException: Base event not found,"{""tradeId"":""TRD-11111""}",550e8400-e29b-41d4-a716-446655440010
+id,created_date,destination,error_message,event_id,event_id_type,event_type,event_version,exception_category,exception_sub_category,exception_type,host,is_active,messaging_platform_type,raising_system,source_system,status,times_replayed,updated_date,updated_by,comment,trace,payload,exception_id,remarks
+1,2025-09-05T11:11:17.781918,trade-ingestion-topic,Transaction deadlock - conflicting locks,EVT-0001,UUID,MODIFY,2,INFRASTRUCTURE,DEADLOCK,org.postgresql.util.PSQLException,trade-service-1.prod.internal,False,KAFKA,trade-validation-service,MUREX,CLOSED,7,2025-09-06T14:11:17.781918,system-auto,Awaiting upstream fix,"org.postgresql.util.PSQLException: Transaction deadlock - conflicting locks
+	at com.zaxxer.hikari.pool.HikariPool.getConnection(HikariPool.java:197)
+	at com.trading.repository.TradeRepository.findById(TradeRepository.java:45)
+	at com.trading.service.TradeService.getTrade(TradeService.java:89)
+	at com.trading.controller.TradeController.getTradeById(TradeController.java:34)",{},0909a9a1-c27d-45aa-bbd2-4e32f9f61cd7,Reordered database lock acquisition to always lock tables in same order (trades then positions).
+2,2025-08-20T19:11:17.781918,trade-ingestion-topic,Index 6 out of bounds for length 3,EVT-0002,UUID,CANCEL,2,VALIDATION,INVALID_DATA,java.lang.ArrayIndexOutOfBoundsException,trade-service-3.prod.internal,True,KAFKA,trade-ingestion-service,MUREX,OPEN,3,2025-08-21T16:11:17.781918,system-auto,Escalated to L2,"java.lang.ArrayIndexOutOfBoundsException: Index 6 out of bounds for length 3
+	at com.trading.parser.TradeFieldParser.parseFields(TradeFieldParser.java:78)
+	at com.trading.service.TradeIngestionService.ingest(TradeIngestionService.java:45)
+	at com.trading.kafka.MessageDeserializer.deserialize(MessageDeserializer.java:67)",{},95cbf4f9-dd0b-4123-b231-934b9d2927df,
+3,2025-10-08T08:11:17.781918,trade-validation-topic,Task rejected from ThreadPoolExecutor,EVT-0003,UUID,NEW,1,INFRASTRUCTURE,RESOURCE_EXHAUSTION,java.util.concurrent.RejectedExecutionException,trade-service-1.prod.internal,False,KAFKA,trade-ingestion-service,MUREX,CLOSED,7,2025-10-09T15:11:17.781918,dev-team,Escalated to L2,"java.util.concurrent.RejectedExecutionException: Task rejected from ThreadPoolExecutor
+	at com.trading.kafka.ProducerService.publishTrade(ProducerService.java:45)
+	at com.trading.service.TradePublisher.publish(TradePublisher.java:23)
+	at com.trading.async.AsyncProcessor.process(AsyncProcessor.java:67)",{},3eccc71c-efff-4ae0-9bdf-5775e7c46972,Implemented backpressure mechanism to slow down message consumption.
+4,2025-10-09T08:11:17.781918,trade-ingestion-topic,Index 10 out of bounds for length 1,EVT-0004,UUID,CANCEL,1,VALIDATION,INVALID_DATA,java.lang.ArrayIndexOutOfBoundsException,trade-service-3.prod.internal,False,KAFKA,trade-ingestion-service,MUREX,CLOSED,7,2025-10-09T17:11:17.781918,ops-team,Awaiting upstream fix,"java.lang.ArrayIndexOutOfBoundsException: Index 10 out of bounds for length 1
+	at com.trading.parser.TradeFieldParser.parseFields(TradeFieldParser.java:78)
+	at com.trading.service.TradeIngestionService.ingest(TradeIngestionService.java:45)
+	at com.trading.kafka.MessageDeserializer.deserialize(MessageDeserializer.java:67)",{},31f90ccd-f5ab-407a-886b-d5d1d730ef96,Added array length validation before access. Reject messages with insufficient fields.
+5,2025-10-26T13:11:17.781918,trade-validation-topic,Kafka broker not available - timeout after 10000ms,EVT-0005,UUID,NEW,1,INFRASTRUCTURE,NETWORK,org.apache.kafka.common.errors.TimeoutException,trade-service-3.prod.internal,False,KAFKA,trade-ingestion-service,BLOOMBERG,CLOSED,9,2025-10-27T16:11:17.781918,system-auto,Awaiting upstream fix,"org.apache.kafka.common.errors.TimeoutException: Kafka broker not available - timeout after 10000ms
+	at com.trading.kafka.ProducerService.publishTrade(ProducerService.java:45)
+	at com.trading.service.TradePublisher.publish(TradePublisher.java:23)
+	at com.trading.async.AsyncProcessor.process(AsyncProcessor.java:67)
+... 8 more",{},f69b2705-2b1a-4e1d-a003-033af32b2b1c,Kafka cluster was down. Restarted brokers and added monitoring alerts.
+6,2025-10-12T21:11:17.781918,trade-processing-topic,Query execution exceeded timeout of 30000ms,EVT-0006,UUID,CANCEL,3,INFRASTRUCTURE,TIMEOUT,java.sql.SQLTimeoutException,trade-service-2.prod.internal,False,KAFKA,trade-consumer-service,ATLAS,CLOSED,9,2025-10-12T23:11:17.781918,dev-team,,"java.sql.SQLTimeoutException: Query execution exceeded timeout of 30000ms
+	at com.zaxxer.hikari.pool.HikariPool.getConnection(HikariPool.java:197)
+	at com.trading.repository.TradeRepository.findById(TradeRepository.java:45)
+	at com.trading.service.TradeService.getTrade(TradeService.java:89)
+	at com.trading.controller.TradeController.getTradeById(TradeController.java:34)",{},a6e637fe-5874-4c58-a079-d913f7def6be,Added connection pooling and increased timeout to 60000ms.
+7,2025-08-23T22:11:17.781918,trade-processing-topic,Class cast exception: Object cannot be converted to TradeEntity,EVT-0007,UUID,NEW,1,VALIDATION,TYPE_MISMATCH,java.lang.ClassCastException,trade-service-5.prod.internal,True,KAFKA,trade-consumer-service,ATLAS,OPEN,14,2025-08-24T15:11:17.781918,ops-team,Investigating,"java.lang.ClassCastException: Class cast exception: Object cannot be converted to TradeEntity
+	at com.trading.transformer.TradeTransformer.transform(TradeTransformer.java:89)
+	at com.trading.service.TradeService.transformTrade(TradeService.java:123)
+	at com.trading.processor.TradeProcessor.process(TradeProcessor.java:45)",{},ea9e9857-3d62-4aa6-90a4-87b0113a6a9b,
+8,2025-10-08T19:11:17.781918,trade-validation-topic,Database deadlock while acquiring lock on table positions,EVT-0008,UUID,CANCEL,3,INFRASTRUCTURE,DEADLOCK,org.postgresql.util.PSQLException,trade-service-3.prod.internal,False,KAFKA,trade-consumer-service,ATLAS,CLOSED,3,2025-10-09T22:11:17.781918,system-auto,,"org.postgresql.util.PSQLException: Database deadlock while acquiring lock on table positions
+	at com.zaxxer.hikari.pool.HikariPool.getConnection(HikariPool.java:197)
+	at com.trading.repository.TradeRepository.findById(TradeRepository.java:45)
+	at com.trading.service.TradeService.getTrade(TradeService.java:89)
+	at com.trading.controller.TradeController.getTradeById(TradeController.java:34)
+... 20 more",{},49e46e79-6b80-4e6f-9335-97f7607061f2,Added deadlock retry logic with exponential backoff.
+9,2025-10-15T11:11:17.781918,trade-ingestion-topic,Thread pool exhausted - cannot accept new tasks,EVT-0009,UUID,MODIFY,1,INFRASTRUCTURE,RESOURCE_EXHAUSTION,java.util.concurrent.RejectedExecutionException,trade-service-4.prod.internal,False,KAFKA,trade-consumer-service,ATLAS,CLOSED,3,2025-10-17T01:11:17.781918,system-auto,,"java.util.concurrent.RejectedExecutionException: Thread pool exhausted - cannot accept new tasks
+	at com.trading.kafka.ProducerService.publishTrade(ProducerService.java:45)
+	at com.trading.service.TradePublisher.publish(TradePublisher.java:23)
+	at com.trading.async.AsyncProcessor.process(AsyncProcessor.java:67)",{},05cef491-04f2-4cd3-8255-cfa234648502,Optimized async processing. Reduced thread pool utilization by 40%.
+10,2025-10-19T01:11:17.781918,trade-validation-topic,Cannot deserialize JSON - unexpected token,EVT-0010,UUID,CANCEL,3,VALIDATION,INVALID_FORMAT,com.fasterxml.jackson.core.JsonParseException,trade-service-4.prod.internal,False,KAFKA,trade-ingestion-service,BLOOMBERG,CLOSED,3,2025-10-20T14:11:17.781918,dev-team,,"com.fasterxml.jackson.core.JsonParseException: Cannot deserialize JSON - unexpected token
+	at com.trading.parser.TradeFieldParser.parseFields(TradeFieldParser.java:78)
+	at com.trading.service.TradeIngestionService.ingest(TradeIngestionService.java:45)
+	at com.trading.kafka.MessageDeserializer.deserialize(MessageDeserializer.java:67)
+... 5 more",{},48fb3d94-8322-4133-9967-1b209c8f66b1,Upstream system sending malformed JSON. Fixed producer schema validation.
+11,2025-09-29T16:11:17.781918,trade-processing-topic,Object reference not set for trade.amount,EVT-0011,UUID,NEW,3,VALIDATION,NULL_VALUE,java.lang.NullPointerException,trade-service-2.prod.internal,True,KAFKA,trade-validation-service,BLOOMBERG,OPEN,14,2025-10-01T05:11:17.781918,ops-team,Investigating,"java.lang.NullPointerException: Object reference not set for trade.amount
+	at com.trading.validation.TradeValidator.validate(TradeValidator.java:45)
+	at com.trading.service.TradeService.processTrade(TradeService.java:67)
+	at com.trading.kafka.MessageHandler.handleMessage(MessageHandler.java:34)
+	at com.trading.kafka.KafkaConsumer.poll(KafkaConsumer.java:89)",{},d9ab5e9a-c9c6-415c-98d7-3536ecdeec4a,
+12,2025-09-18T02:11:17.781918,trade-validation-topic,Attempting to access element value1 in array of size value2,EVT-0012,UUID,CANCEL,1,VALIDATION,INVALID_DATA,java.lang.ArrayIndexOutOfBoundsException,trade-service-4.prod.internal,True,KAFKA,trade-consumer-service,ATLAS,OPEN,2,2025-09-19T07:11:17.781918,dev-team,Escalated to L2,"java.lang.ArrayIndexOutOfBoundsException: Attempting to access element value1 in array of size value2
+	at com.trading.parser.TradeFieldParser.parseFields(TradeFieldParser.java:78)
+	at com.trading.service.TradeIngestionService.ingest(TradeIngestionService.java:45)
+	at com.trading.kafka.MessageDeserializer.deserialize(MessageDeserializer.java:67)",{},040278d9-3319-41c7-b4e4-3e72b1490d9b,
+13,2025-08-18T21:11:17.781918,trade-processing-topic,Database deadlock while acquiring lock on table trades,EVT-0013,UUID,NEW,3,INFRASTRUCTURE,DEADLOCK,org.postgresql.util.PSQLException,trade-service-4.prod.internal,False,KAFKA,trade-validation-service,BLOOMBERG,CLOSED,2,2025-08-19T13:11:17.781918,dev-team,Escalated to L2,"org.postgresql.util.PSQLException: Database deadlock while acquiring lock on table trades
+	at com.zaxxer.hikari.pool.HikariPool.getConnection(HikariPool.java:197)
+	at com.trading.repository.TradeRepository.findById(TradeRepository.java:45)
+	at com.trading.service.TradeService.getTrade(TradeService.java:89)
+	at com.trading.controller.TradeController.getTradeById(TradeController.java:34)",{},e7710d38-5f73-4ded-9ad1-c3945d8e2003,Added deadlock retry logic with exponential backoff.
+14,2025-11-11T16:11:17.781918,trade-ingestion-topic,Database deadlock while acquiring lock on table trades,EVT-0014,UUID,CANCEL,1,INFRASTRUCTURE,DEADLOCK,org.postgresql.util.PSQLException,trade-service-2.prod.internal,True,KAFKA,trade-validation-service,ATLAS,OPEN,18,2025-11-13T08:11:17.781918,ops-team,,"org.postgresql.util.PSQLException: Database deadlock while acquiring lock on table trades
+	at com.zaxxer.hikari.pool.HikariPool.getConnection(HikariPool.java:197)
+	at com.trading.repository.TradeRepository.findById(TradeRepository.java:45)
+	at com.trading.service.TradeService.getTrade(TradeService.java:89)
+	at com.trading.controller.TradeController.getTradeById(TradeController.java:34)",{},51fbdd23-7c97-4391-b19f-dd52926be616,
+15,2025-09-29T18:11:17.781918,trade-validation-topic,Transaction deadlock - conflicting locks,EVT-0015,UUID,CANCEL,1,INFRASTRUCTURE,DEADLOCK,org.postgresql.util.PSQLException,trade-service-2.prod.internal,True,KAFKA,trade-consumer-service,ATLAS,OPEN,5,2025-09-29T20:11:17.781918,system-auto,Escalated to L2,"org.postgresql.util.PSQLException: Transaction deadlock - conflicting locks
+	at com.zaxxer.hikari.pool.HikariPool.getConnection(HikariPool.java:197)
+	at com.trading.repository.TradeRepository.findById(TradeRepository.java:45)
+	at com.trading.service.TradeService.getTrade(TradeService.java:89)
+	at com.trading.controller.TradeController.getTradeById(TradeController.java:34)
+... 15 more",{},e509facb-89a1-4d2e-bef6-f65679f06ad1,
+16,2025-11-14T00:11:17.781918,trade-ingestion-topic,Type mismatch: expected value1 but got value2,EVT-0016,UUID,NEW,1,VALIDATION,TYPE_MISMATCH,java.lang.ClassCastException,trade-service-3.prod.internal,False,KAFKA,trade-consumer-service,MUREX,CLOSED,3,2025-11-15T07:11:17.781918,ops-team,Investigating,"java.lang.ClassCastException: Type mismatch: expected value1 but got value2
+	at com.trading.transformer.TradeTransformer.transform(TradeTransformer.java:89)
+	at com.trading.service.TradeService.transformTrade(TradeService.java:123)
+	at com.trading.processor.TradeProcessor.process(TradeProcessor.java:45)",{},e0f51dcc-c8b9-441b-b278-c3a1eb8d9a56,Fixed type conversion in transformer. Now handles both field and parameter.
+17,2025-09-16T18:11:17.781918,trade-ingestion-topic,Thread pool exhausted - cannot accept new tasks,EVT-0017,UUID,CANCEL,2,INFRASTRUCTURE,RESOURCE_EXHAUSTION,java.util.concurrent.RejectedExecutionException,trade-service-4.prod.internal,False,KAFKA,trade-validation-service,BLOOMBERG,CLOSED,10,2025-09-18T18:11:17.781918,dev-team,Escalated to L2,"java.util.concurrent.RejectedExecutionException: Thread pool exhausted - cannot accept new tasks
+	at com.trading.kafka.ProducerService.publishTrade(ProducerService.java:45)
+	at com.trading.service.TradePublisher.publish(TradePublisher.java:23)
+	at com.trading.async.AsyncProcessor.process(AsyncProcessor.java:67)
+... 8 more",{},974bd14d-9280-4884-98d6-9e8d05cff134,Optimized async processing. Reduced thread pool utilization by 50%.
+18,2025-10-04T12:11:17.781918,trade-ingestion-topic,Executor queue capacity settlement.date exceeded,EVT-0018,UUID,NEW,3,INFRASTRUCTURE,RESOURCE_EXHAUSTION,java.util.concurrent.RejectedExecutionException,trade-service-4.prod.internal,False,KAFKA,trade-validation-service,ATLAS,CLOSED,6,2025-10-04T14:11:17.781918,ops-team,Investigating,"java.util.concurrent.RejectedExecutionException: Executor queue capacity settlement.date exceeded
+	at com.trading.kafka.ProducerService.publishTrade(ProducerService.java:45)
+	at com.trading.service.TradePublisher.publish(TradePublisher.java:23)
+	at com.trading.async.AsyncProcessor.process(AsyncProcessor.java:67)
+... 10 more",{},dad7ec27-232b-4065-942e-8ec7bb8cd185,Increased thread pool size from 100 to 10 and added queue capacity monitoring.
+19,2025-08-25T18:11:17.781918,trade-validation-topic,Producer request timeout after 60000ms,EVT-0019,UUID,NEW,1,INFRASTRUCTURE,NETWORK,org.apache.kafka.common.errors.TimeoutException,trade-service-4.prod.internal,False,KAFKA,trade-ingestion-service,ATLAS,CLOSED,5,2025-08-25T20:11:17.781918,system-auto,,"org.apache.kafka.common.errors.TimeoutException: Producer request timeout after 60000ms
+	at com.trading.kafka.ProducerService.publishTrade(ProducerService.java:45)
+	at com.trading.service.TradePublisher.publish(TradePublisher.java:23)
+	at com.trading.async.AsyncProcessor.process(AsyncProcessor.java:67)
+... 16 more",{},a3b21462-e76e-44c2-bb69-df5bae8eb92b,Kafka cluster was down. Restarted brokers and added monitoring alerts.
+20,2025-10-30T11:11:17.781918,trade-ingestion-topic,Producer request timeout after 60000ms,EVT-0020,UUID,NEW,1,INFRASTRUCTURE,NETWORK,org.apache.kafka.common.errors.TimeoutException,trade-service-5.prod.internal,True,KAFKA,trade-ingestion-service,MUREX,OPEN,7,2025-11-01T05:11:17.781918,system-auto,,"org.apache.kafka.common.errors.TimeoutException: Producer request timeout after 60000ms
+	at com.trading.kafka.ProducerService.publishTrade(ProducerService.java:45)
+	at com.trading.service.TradePublisher.publish(TradePublisher.java:23)
+	at com.trading.async.AsyncProcessor.process(AsyncProcessor.java:67)",{},33fe0bc0-be29-42d0-81a8-6b96cdae1b94,
+21,2025-10-18T23:11:17.781918,trade-validation-topic,ERROR: deadlock detected,EVT-0021,UUID,CANCEL,3,INFRASTRUCTURE,DEADLOCK,org.postgresql.util.PSQLException,trade-service-2.prod.internal,False,KAFKA,trade-ingestion-service,ATLAS,CLOSED,7,2025-10-20T09:11:17.781918,ops-team,,"org.postgresql.util.PSQLException: ERROR: deadlock detected
+	at com.zaxxer.hikari.pool.HikariPool.getConnection(HikariPool.java:197)
+	at com.trading.repository.TradeRepository.findById(TradeRepository.java:45)
+	at com.trading.service.TradeService.getTrade(TradeService.java:89)
+	at com.trading.controller.TradeController.getTradeById(TradeController.java:34)",{},91ad73bd-66a4-49dd-aea8-ee6e7d269d8b,Reordered database lock acquisition to always lock tables in same order (trades then positions).
+22,2025-08-25T04:11:17.781918,trade-validation-topic,Object reference not set for settlement.date,EVT-0022,UUID,MODIFY,2,VALIDATION,NULL_VALUE,java.lang.NullPointerException,trade-service-2.prod.internal,False,KAFKA,trade-ingestion-service,MUREX,CLOSED,4,2025-08-26T15:11:17.781918,ops-team,,"java.lang.NullPointerException: Object reference not set for settlement.date
+	at com.trading.validation.TradeValidator.validate(TradeValidator.java:45)
+	at com.trading.service.TradeService.processTrade(TradeService.java:67)
+	at com.trading.kafka.MessageHandler.handleMessage(MessageHandler.java:34)
+	at com.trading.kafka.KafkaConsumer.poll(KafkaConsumer.java:89)
+... 6 more",{},65336193-7f52-4330-8427-881fcc2b0cb1,Added defensive null checks in parameter validation.
+23,2025-09-13T16:11:17.781918,trade-processing-topic,ERROR: deadlock detected,EVT-0023,UUID,NEW,2,INFRASTRUCTURE,DEADLOCK,org.postgresql.util.PSQLException,trade-service-2.prod.internal,False,KAFKA,trade-ingestion-service,BLOOMBERG,CLOSED,2,2025-09-15T16:11:17.781918,dev-team,,"org.postgresql.util.PSQLException: ERROR: deadlock detected
+	at com.zaxxer.hikari.pool.HikariPool.getConnection(HikariPool.java:197)
+	at com.trading.repository.TradeRepository.findById(TradeRepository.java:45)
+	at com.trading.service.TradeService.getTrade(TradeService.java:89)
+	at com.trading.controller.TradeController.getTradeById(TradeController.java:34)",{},d169c5ce-86b7-4868-aba6-72761d2388c6,Reduced transaction scope. Split large transaction into smaller batches.
+24,2025-11-14T06:11:17.781918,trade-validation-topic,Attempting to access element value1 in array of size value2,EVT-0024,UUID,MODIFY,3,VALIDATION,INVALID_DATA,java.lang.ArrayIndexOutOfBoundsException,trade-service-3.prod.internal,True,KAFKA,trade-validation-service,MUREX,OPEN,2,2025-11-15T00:11:17.781918,dev-team,,"java.lang.ArrayIndexOutOfBoundsException: Attempting to access element value1 in array of size value2
+	at com.trading.parser.TradeFieldParser.parseFields(TradeFieldParser.java:78)
+	at com.trading.service.TradeIngestionService.ingest(TradeIngestionService.java:45)
+	at com.trading.kafka.MessageDeserializer.deserialize(MessageDeserializer.java:67)",{},10092578-aa5e-4589-9a84-0ee7a4982506,
+25,2025-11-02T09:11:17.781918,trade-processing-topic,Index 10 out of bounds for length 5,EVT-0025,UUID,NEW,1,VALIDATION,INVALID_DATA,java.lang.ArrayIndexOutOfBoundsException,trade-service-4.prod.internal,False,KAFKA,trade-ingestion-service,MUREX,CLOSED,5,2025-11-03T22:11:17.781918,ops-team,Awaiting upstream fix,"java.lang.ArrayIndexOutOfBoundsException: Index 10 out of bounds for length 5
+	at com.trading.parser.TradeFieldParser.parseFields(TradeFieldParser.java:78)
+	at com.trading.service.TradeIngestionService.ingest(TradeIngestionService.java:45)
+	at com.trading.kafka.MessageDeserializer.deserialize(MessageDeserializer.java:67)",{},f4a409fb-43ee-4304-b589-05ce6e2b3b64,Fixed bug in parser that assumed fixed number of fields. Added bounds checking.
+26,2025-10-11T23:11:17.781918,trade-ingestion-topic,Malformed JSON at line counterparty,EVT-0026,UUID,NEW,3,VALIDATION,INVALID_FORMAT,com.fasterxml.jackson.core.JsonParseException,trade-service-1.prod.internal,False,KAFKA,trade-ingestion-service,BLOOMBERG,CLOSED,9,2025-10-13T15:11:17.781918,ops-team,Awaiting upstream fix,"com.fasterxml.jackson.core.JsonParseException: Malformed JSON at line counterparty
+	at com.trading.parser.TradeFieldParser.parseFields(TradeFieldParser.java:78)
+	at com.trading.service.TradeIngestionService.ingest(TradeIngestionService.java:45)
+	at com.trading.kafka.MessageDeserializer.deserialize(MessageDeserializer.java:67)",{},33cd5621-be44-4d2c-b4ba-a6b9e27d4f0d,Upstream system sending malformed JSON. Fixed producer schema validation.
+27,2025-10-06T03:11:17.781918,trade-ingestion-topic,Database connection timeout: 10000ms,EVT-0027,UUID,NEW,3,INFRASTRUCTURE,TIMEOUT,java.sql.SQLTimeoutException,trade-service-4.prod.internal,False,KAFKA,trade-validation-service,MUREX,CLOSED,3,2025-10-06T10:11:17.781918,system-auto,Escalated to L2,"java.sql.SQLTimeoutException: Database connection timeout: 10000ms
+	at com.zaxxer.hikari.pool.HikariPool.getConnection(HikariPool.java:197)
+	at com.trading.repository.TradeRepository.findById(TradeRepository.java:45)
+	at com.trading.service.TradeService.getTrade(TradeService.java:89)
+	at com.trading.controller.TradeController.getTradeById(TradeController.java:34)",{},0fc1f7f2-59eb-492d-ba65-3bfb001c0220,Added connection pooling and increased timeout to 120000ms.
+28,2025-11-11T13:11:17.781918,trade-processing-topic,Cannot invoke trade.amount on null object,EVT-0028,UUID,CANCEL,2,VALIDATION,NULL_VALUE,java.lang.NullPointerException,trade-service-2.prod.internal,False,KAFKA,trade-ingestion-service,ATLAS,CLOSED,10,2025-11-12T16:11:17.781918,system-auto,Investigating,"java.lang.NullPointerException: Cannot invoke trade.amount on null object
+	at com.trading.validation.TradeValidator.validate(TradeValidator.java:45)
+	at com.trading.service.TradeService.processTrade(TradeService.java:67)
+	at com.trading.kafka.MessageHandler.handleMessage(MessageHandler.java:34)
+	at com.trading.kafka.KafkaConsumer.poll(KafkaConsumer.java:89)",{},5160131a-ec5b-45b5-924e-de4292e6c448,Fixed by validating parameter is not null before processing.
+29,2025-09-12T17:11:17.781918,trade-ingestion-topic,Null pointer accessing field settlement.date,EVT-0029,UUID,MODIFY,1,VALIDATION,NULL_VALUE,java.lang.NullPointerException,trade-service-1.prod.internal,False,KAFKA,trade-validation-service,BLOOMBERG,CLOSED,3,2025-09-13T23:11:17.781918,system-auto,,"java.lang.NullPointerException: Null pointer accessing field settlement.date
+	at com.trading.validation.TradeValidator.validate(TradeValidator.java:45)
+	at com.trading.service.TradeService.processTrade(TradeService.java:67)
+	at com.trading.kafka.MessageHandler.handleMessage(MessageHandler.java:34)
+	at com.trading.kafka.KafkaConsumer.poll(KafkaConsumer.java:89)
+... 17 more",{},64291c6e-a9eb-4db9-963c-d40a58feaf94,Added defensive null checks in field validation.
+30,2025-11-13T17:11:17.781918,trade-processing-topic,Executor queue capacity counterparty exceeded,EVT-0030,UUID,CANCEL,2,INFRASTRUCTURE,RESOURCE_EXHAUSTION,java.util.concurrent.RejectedExecutionException,trade-service-3.prod.internal,False,KAFKA,trade-validation-service,BLOOMBERG,CLOSED,2,2025-11-14T05:11:17.781918,ops-team,Awaiting upstream fix,"java.util.concurrent.RejectedExecutionException: Executor queue capacity counterparty exceeded
+	at com.trading.kafka.ProducerService.publishTrade(ProducerService.java:45)
+	at com.trading.service.TradePublisher.publish(TradePublisher.java:23)
+	at com.trading.async.AsyncProcessor.process(AsyncProcessor.java:67)
+... 11 more",{},9df7788c-8b95-4e71-bca1-2e51e6e86211,Optimized async processing. Reduced thread pool utilization by 40%.
+31,2025-10-31T01:11:17.781918,trade-validation-topic,Producer request timeout after 5000ms,EVT-0031,UUID,MODIFY,2,INFRASTRUCTURE,NETWORK,org.apache.kafka.common.errors.TimeoutException,trade-service-3.prod.internal,False,KAFKA,trade-consumer-service,MUREX,CLOSED,1,2025-10-31T08:11:17.781918,dev-team,,"org.apache.kafka.common.errors.TimeoutException: Producer request timeout after 5000ms
+	at com.trading.kafka.ProducerService.publishTrade(ProducerService.java:45)
+	at com.trading.service.TradePublisher.publish(TradePublisher.java:23)
+	at com.trading.async.AsyncProcessor.process(AsyncProcessor.java:67)",{},3d633177-4a42-4720-89df-956746b21a49,Increased producer timeout from 60000ms to 120000ms.
+32,2025-08-21T20:11:17.781918,trade-processing-topic,Redis connection timeout after 10000ms,EVT-0032,UUID,CANCEL,3,INFRASTRUCTURE,CONNECTION_ERROR,redis.clients.jedis.exceptions.JedisConnectionException,trade-service-2.prod.internal,False,KAFKA,trade-consumer-service,ATLAS,CLOSED,1,2025-08-22T19:11:17.781918,ops-team,Investigating,"redis.clients.jedis.exceptions.JedisConnectionException: Redis connection timeout after 10000ms
+	at redis.clients.jedis.Connection.connect(Connection.java:89)
+	at com.trading.cache.RedisCacheService.get(RedisCacheService.java:34)
+	at com.trading.service.ReferenceDataService.getSecurityInfo(ReferenceDataService.java:56)
+... 14 more",{},8a953697-0689-49e4-9ebb-164983d6194a,Increased Redis connection pool size from 20 to 50.
+33,2025-09-18T12:11:17.781918,trade-validation-topic,Unexpected character at position settlement.date,EVT-0033,UUID,NEW,1,VALIDATION,INVALID_FORMAT,com.fasterxml.jackson.core.JsonParseException,trade-service-4.prod.internal,False,KAFKA,trade-ingestion-service,BLOOMBERG,CLOSED,6,2025-09-20T06:11:17.781918,system-auto,Escalated to L2,"com.fasterxml.jackson.core.JsonParseException: Unexpected character at position settlement.date
+	at com.trading.parser.TradeFieldParser.parseFields(TradeFieldParser.java:78)
+	at com.trading.service.TradeIngestionService.ingest(TradeIngestionService.java:45)
+	at com.trading.kafka.MessageDeserializer.deserialize(MessageDeserializer.java:67)",{},6811fc9f-831b-4169-89ea-fdf61a90d105,Updated parser to handle additional JSON formats from upstream.
+34,2025-09-05T01:11:17.781918,trade-validation-topic,Null pointer accessing field trade.quantity,EVT-0034,UUID,CANCEL,2,VALIDATION,NULL_VALUE,java.lang.NullPointerException,trade-service-5.prod.internal,False,KAFKA,trade-ingestion-service,ATLAS,CLOSED,8,2025-09-05T21:11:17.781918,dev-team,Escalated to L2,"java.lang.NullPointerException: Null pointer accessing field trade.quantity
+	at com.trading.validation.TradeValidator.validate(TradeValidator.java:45)
+	at com.trading.service.TradeService.processTrade(TradeService.java:67)
+	at com.trading.kafka.MessageHandler.handleMessage(MessageHandler.java:34)
+	at com.trading.kafka.KafkaConsumer.poll(KafkaConsumer.java:89)
+... 19 more",{},7a3178fd-a3de-40f3-a27e-b4ee16b3737c,Added null check before accessing parameter. Reject message if object is null.
+35,2025-09-13T18:11:17.781918,trade-ingestion-topic,Executor queue capacity trade.quantity exceeded,EVT-0035,UUID,MODIFY,3,INFRASTRUCTURE,RESOURCE_EXHAUSTION,java.util.concurrent.RejectedExecutionException,trade-service-4.prod.internal,False,KAFKA,trade-ingestion-service,BLOOMBERG,CLOSED,1,2025-09-13T20:11:17.781918,system-auto,,"java.util.concurrent.RejectedExecutionException: Executor queue capacity trade.quantity exceeded
+	at com.trading.kafka.ProducerService.publishTrade(ProducerService.java:45)
+	at com.trading.service.TradePublisher.publish(TradePublisher.java:23)
+	at com.trading.async.AsyncProcessor.process(AsyncProcessor.java:67)
+... 18 more",{},432a61b0-2961-4864-bcea-005c3b86446f,Implemented backpressure mechanism to slow down message consumption.
+36,2025-08-29T08:11:17.781918,trade-processing-topic,ERROR: deadlock detected,EVT-0036,UUID,MODIFY,1,INFRASTRUCTURE,DEADLOCK,org.postgresql.util.PSQLException,trade-service-4.prod.internal,False,KAFKA,trade-ingestion-service,BLOOMBERG,CLOSED,10,2025-08-30T20:11:17.781918,system-auto,Investigating,"org.postgresql.util.PSQLException: ERROR: deadlock detected
+	at com.zaxxer.hikari.pool.HikariPool.getConnection(HikariPool.java:197)
+	at com.trading.repository.TradeRepository.findById(TradeRepository.java:45)
+	at com.trading.service.TradeService.getTrade(TradeService.java:89)
+	at com.trading.controller.TradeController.getTradeById(TradeController.java:34)",{},ef4a0ed5-39ba-41b3-abb7-a2171312dd65,Reduced transaction scope. Split large transaction into smaller batches.
+37,2025-08-30T06:11:17.781918,trade-validation-topic,Unexpected character at position counterparty,EVT-0037,UUID,NEW,1,VALIDATION,INVALID_FORMAT,com.fasterxml.jackson.core.JsonParseException,trade-service-1.prod.internal,False,KAFKA,trade-ingestion-service,ATLAS,CLOSED,1,2025-08-31T09:11:17.781918,dev-team,Awaiting upstream fix,"com.fasterxml.jackson.core.JsonParseException: Unexpected character at position counterparty
+	at com.trading.parser.TradeFieldParser.parseFields(TradeFieldParser.java:78)
+	at com.trading.service.TradeIngestionService.ingest(TradeIngestionService.java:45)
+	at com.trading.kafka.MessageDeserializer.deserialize(MessageDeserializer.java:67)",{},e7343da8-a70c-4d80-a3ac-3d464355195f,Added JSON schema validation on consumer side. Reject invalid messages.
+38,2025-10-09T11:11:17.781918,trade-validation-topic,Cannot invoke trade.quantity on null object,EVT-0038,UUID,MODIFY,2,VALIDATION,NULL_VALUE,java.lang.NullPointerException,trade-service-3.prod.internal,False,KAFKA,trade-validation-service,MUREX,CLOSED,6,2025-10-10T01:11:17.781918,system-auto,,"java.lang.NullPointerException: Cannot invoke trade.quantity on null object
+	at com.trading.validation.TradeValidator.validate(TradeValidator.java:45)
+	at com.trading.service.TradeService.processTrade(TradeService.java:67)
+	at com.trading.kafka.MessageHandler.handleMessage(MessageHandler.java:34)
+	at com.trading.kafka.KafkaConsumer.poll(KafkaConsumer.java:89)
+... 5 more",{},72a328c7-aed9-4938-a7d2-650de0cf0894,Added defensive null checks in parameter validation.
+39,2025-09-09T04:11:17.781918,trade-validation-topic,Cannot deserialize JSON - unexpected token,EVT-0039,UUID,CANCEL,1,VALIDATION,INVALID_FORMAT,com.fasterxml.jackson.core.JsonParseException,trade-service-5.prod.internal,False,KAFKA,trade-validation-service,ATLAS,CLOSED,9,2025-09-10T18:11:17.781918,system-auto,,"com.fasterxml.jackson.core.JsonParseException: Cannot deserialize JSON - unexpected token
+	at com.trading.parser.TradeFieldParser.parseFields(TradeFieldParser.java:78)
+	at com.trading.service.TradeIngestionService.ingest(TradeIngestionService.java:45)
+	at com.trading.kafka.MessageDeserializer.deserialize(MessageDeserializer.java:67)
+... 13 more",{},fcf2b328-50b2-471a-8dd7-c8e7f211fec0,Updated parser to handle additional JSON formats from upstream.
+40,2025-09-20T12:11:17.781918,trade-ingestion-topic,Connection to database timed out after 10000ms,EVT-0040,UUID,CANCEL,1,INFRASTRUCTURE,TIMEOUT,java.sql.SQLTimeoutException,trade-service-1.prod.internal,True,KAFKA,trade-consumer-service,BLOOMBERG,OPEN,8,2025-09-21T10:11:17.781918,dev-team,Investigating,"java.sql.SQLTimeoutException: Connection to database timed out after 10000ms
+	at com.zaxxer.hikari.pool.HikariPool.getConnection(HikariPool.java:197)
+	at com.trading.repository.TradeRepository.findById(TradeRepository.java:45)
+	at com.trading.service.TradeService.getTrade(TradeService.java:89)
+	at com.trading.controller.TradeController.getTradeById(TradeController.java:34)",{},1b55b00e-b443-40d2-856a-4b06e9bf13b4,
+41,2025-09-22T16:11:17.781918,trade-processing-topic,OutOfMemoryError: unable to allocate 4194304 bytes,EVT-0041,UUID,MODIFY,3,INFRASTRUCTURE,MEMORY,java.lang.OutOfMemoryError,trade-service-3.prod.internal,True,KAFKA,trade-validation-service,BLOOMBERG,OPEN,15,2025-09-23T16:11:17.781918,system-auto,Investigating,"java.lang.OutOfMemoryError: OutOfMemoryError: unable to allocate 4194304 bytes
+	at com.trading.parser.TradeFieldParser.parseFields(TradeFieldParser.java:78)
+	at com.trading.service.TradeIngestionService.ingest(TradeIngestionService.java:45)
+	at com.trading.kafka.MessageDeserializer.deserialize(MessageDeserializer.java:67)",{},b0a99fc2-8bcb-49bd-a179-5b7b0251253c,
+42,2025-10-11T00:11:17.781918,trade-processing-topic,Class cast exception: Long cannot be converted to Double,EVT-0042,UUID,CANCEL,3,VALIDATION,TYPE_MISMATCH,java.lang.ClassCastException,trade-service-1.prod.internal,False,KAFKA,trade-consumer-service,ATLAS,CLOSED,6,2025-10-12T19:11:17.781918,system-auto,,"java.lang.ClassCastException: Class cast exception: Long cannot be converted to Double
+	at com.trading.transformer.TradeTransformer.transform(TradeTransformer.java:89)
+	at com.trading.service.TradeService.transformTrade(TradeService.java:123)
+	at com.trading.processor.TradeProcessor.process(TradeProcessor.java:45)",{},0ee81641-85bb-4900-a1f1-25059009557c,Added type checking before cast. Reject messages with incompatible types.
+43,2025-08-18T21:11:17.781918,trade-processing-topic,Kafka broker not available - timeout after 60000ms,EVT-0043,UUID,NEW,1,INFRASTRUCTURE,NETWORK,org.apache.kafka.common.errors.TimeoutException,trade-service-5.prod.internal,False,KAFKA,trade-ingestion-service,MUREX,CLOSED,5,2025-08-19T13:11:17.781918,dev-team,Awaiting upstream fix,"org.apache.kafka.common.errors.TimeoutException: Kafka broker not available - timeout after 60000ms
+	at com.trading.kafka.ProducerService.publishTrade(ProducerService.java:45)
+	at com.trading.service.TradePublisher.publish(TradePublisher.java:23)
+	at com.trading.async.AsyncProcessor.process(AsyncProcessor.java:67)
+... 12 more",{},25fa0dc5-bc57-4ce4-9229-714a98fd7cff,Increased producer timeout from 120000ms to 60000ms.
+44,2025-08-28T11:11:17.781918,trade-processing-topic,Task rejected from ThreadPoolExecutor,EVT-0044,UUID,MODIFY,3,INFRASTRUCTURE,RESOURCE_EXHAUSTION,java.util.concurrent.RejectedExecutionException,trade-service-3.prod.internal,False,KAFKA,trade-ingestion-service,BLOOMBERG,CLOSED,5,2025-08-29T09:11:17.781918,system-auto,Investigating,"java.util.concurrent.RejectedExecutionException: Task rejected from ThreadPoolExecutor
+	at com.trading.kafka.ProducerService.publishTrade(ProducerService.java:45)
+	at com.trading.service.TradePublisher.publish(TradePublisher.java:23)
+	at com.trading.async.AsyncProcessor.process(AsyncProcessor.java:67)",{},b759c715-f4ce-4da2-9a53-10420c8aadac,Implemented backpressure mechanism to slow down message consumption.
+45,2025-10-20T10:11:17.781918,trade-processing-topic,Array index value1 exceeds array size value2,EVT-0045,UUID,MODIFY,2,VALIDATION,INVALID_DATA,java.lang.ArrayIndexOutOfBoundsException,trade-service-4.prod.internal,False,KAFKA,trade-validation-service,MUREX,CLOSED,7,2025-10-20T16:11:17.781918,system-auto,Investigating,"java.lang.ArrayIndexOutOfBoundsException: Array index value1 exceeds array size value2
+	at com.trading.parser.TradeFieldParser.parseFields(TradeFieldParser.java:78)
+	at com.trading.service.TradeIngestionService.ingest(TradeIngestionService.java:45)
+	at com.trading.kafka.MessageDeserializer.deserialize(MessageDeserializer.java:67)
+... 10 more",{},2c9dc026-acb4-4dd8-9269-6f44e4f72862,Added array length validation before access. Reject messages with insufficient fields.
+46,2025-10-27T22:11:17.781918,trade-ingestion-topic,Producer request timeout after 60000ms,EVT-0046,UUID,NEW,3,INFRASTRUCTURE,NETWORK,org.apache.kafka.common.errors.TimeoutException,trade-service-1.prod.internal,False,KAFKA,trade-ingestion-service,BLOOMBERG,CLOSED,4,2025-10-29T06:11:17.781918,ops-team,,"org.apache.kafka.common.errors.TimeoutException: Producer request timeout after 60000ms
+	at com.trading.kafka.ProducerService.publishTrade(ProducerService.java:45)
+	at com.trading.service.TradePublisher.publish(TradePublisher.java:23)
+	at com.trading.async.AsyncProcessor.process(AsyncProcessor.java:67)
+... 17 more",{},dca9a158-9530-42a1-86ed-0f0a91834ccf,Kafka cluster was down. Restarted brokers and added monitoring alerts.
+47,2025-11-06T13:11:17.781918,trade-processing-topic,Class cast exception: Long cannot be converted to Double,EVT-0047,UUID,MODIFY,2,VALIDATION,TYPE_MISMATCH,java.lang.ClassCastException,trade-service-4.prod.internal,False,KAFKA,trade-ingestion-service,MUREX,CLOSED,3,2025-11-07T03:11:17.781918,dev-team,Awaiting upstream fix,"java.lang.ClassCastException: Class cast exception: Long cannot be converted to Double
+	at com.trading.transformer.TradeTransformer.transform(TradeTransformer.java:89)
+	at com.trading.service.TradeService.transformTrade(TradeService.java:123)
+	at com.trading.processor.TradeProcessor.process(TradeProcessor.java:45)
+... 10 more",{},3a824ccb-6543-44f3-84aa-2dc645cd05f1,Upstream changed field type. Updated parser to handle both types and convert.
+48,2025-08-19T18:11:17.781918,trade-processing-topic,Thread pool exhausted - cannot accept new tasks,EVT-0048,UUID,MODIFY,3,INFRASTRUCTURE,RESOURCE_EXHAUSTION,java.util.concurrent.RejectedExecutionException,trade-service-4.prod.internal,False,KAFKA,trade-consumer-service,ATLAS,CLOSED,8,2025-08-20T13:11:17.781918,dev-team,,"java.util.concurrent.RejectedExecutionException: Thread pool exhausted - cannot accept new tasks
+	at com.trading.kafka.ProducerService.publishTrade(ProducerService.java:45)
+	at com.trading.service.TradePublisher.publish(TradePublisher.java:23)
+	at com.trading.async.AsyncProcessor.process(AsyncProcessor.java:67)",{},a0db9b8f-e1e1-4a9f-b5a1-8c7ed375ccc6,Implemented backpressure mechanism to slow down message consumption.
+49,2025-11-02T07:11:17.781918,trade-validation-topic,Database connection timeout: 10000ms,EVT-0049,UUID,NEW,1,INFRASTRUCTURE,TIMEOUT,java.sql.SQLTimeoutException,trade-service-3.prod.internal,False,KAFKA,trade-consumer-service,ATLAS,CLOSED,10,2025-11-03T08:11:17.781918,ops-team,Investigating,"java.sql.SQLTimeoutException: Database connection timeout: 10000ms
+	at com.zaxxer.hikari.pool.HikariPool.getConnection(HikariPool.java:197)
+	at com.trading.repository.TradeRepository.findById(TradeRepository.java:45)
+	at com.trading.service.TradeService.getTrade(TradeService.java:89)
+	at com.trading.controller.TradeController.getTradeById(TradeController.java:34)",{},a0ac6b53-3252-4e36-8df2-a49eb5085291,Increased connection pool size from 60000 to 30000 and timeout to 120000ms.
+50,2025-10-28T19:11:17.781918,trade-validation-topic,Database connection timeout: 10000ms,EVT-0050,UUID,MODIFY,2,INFRASTRUCTURE,TIMEOUT,java.sql.SQLTimeoutException,trade-service-5.prod.internal,False,KAFKA,trade-consumer-service,BLOOMBERG,CLOSED,7,2025-10-28T20:11:17.781918,system-auto,Escalated to L2,"java.sql.SQLTimeoutException: Database connection timeout: 10000ms
+	at com.zaxxer.hikari.pool.HikariPool.getConnection(HikariPool.java:197)
+	at com.trading.repository.TradeRepository.findById(TradeRepository.java:45)
+	at com.trading.service.TradeService.getTrade(TradeService.java:89)
+	at com.trading.controller.TradeController.getTradeById(TradeController.java:34)
+... 6 more",{},4cb7322f-bb27-484b-92c3-369608041ba6,Added connection pooling and increased timeout to 30000ms.
+51,2025-11-13T05:11:17.781918,trade-validation-topic,Connection refused to Redis cache,EVT-0051,UUID,CANCEL,1,INFRASTRUCTURE,CONNECTION_ERROR,redis.clients.jedis.exceptions.JedisConnectionException,trade-service-3.prod.internal,True,KAFKA,trade-ingestion-service,BLOOMBERG,OPEN,2,2025-11-14T23:11:17.781918,dev-team,Escalated to L2,"redis.clients.jedis.exceptions.JedisConnectionException: Connection refused to Redis cache
+	at redis.clients.jedis.Connection.connect(Connection.java:89)
+	at com.trading.cache.RedisCacheService.get(RedisCacheService.java:34)
+	at com.trading.service.ReferenceDataService.getSecurityInfo(ReferenceDataService.java:56)",{},399fee66-cbff-4b35-8bf3-8076179d2ecb,
+52,2025-09-03T23:11:17.781918,trade-processing-topic,Redis connection timeout after 60000ms,EVT-0052,UUID,NEW,3,INFRASTRUCTURE,CONNECTION_ERROR,redis.clients.jedis.exceptions.JedisConnectionException,trade-service-3.prod.internal,True,KAFKA,trade-ingestion-service,ATLAS,OPEN,13,2025-09-05T23:11:17.781918,ops-team,Escalated to L2,"redis.clients.jedis.exceptions.JedisConnectionException: Redis connection timeout after 60000ms
+	at redis.clients.jedis.Connection.connect(Connection.java:89)
+	at com.trading.cache.RedisCacheService.get(RedisCacheService.java:34)
+	at com.trading.service.ReferenceDataService.getSecurityInfo(ReferenceDataService.java:56)
+... 19 more",{},6866987e-ec59-414b-8c65-c542c4a839df,
+53,2025-10-20T04:11:17.781918,trade-validation-topic,Producer request timeout after 60000ms,EVT-0053,UUID,NEW,3,INFRASTRUCTURE,NETWORK,org.apache.kafka.common.errors.TimeoutException,trade-service-1.prod.internal,True,KAFKA,trade-validation-service,ATLAS,OPEN,7,2025-10-20T17:11:17.781918,ops-team,Awaiting upstream fix,"org.apache.kafka.common.errors.TimeoutException: Producer request timeout after 60000ms
+	at com.trading.kafka.ProducerService.publishTrade(ProducerService.java:45)
+	at com.trading.service.TradePublisher.publish(TradePublisher.java:23)
+	at com.trading.async.AsyncProcessor.process(AsyncProcessor.java:67)
+... 9 more",{},b5326b89-3851-457b-9d0e-fe37c6ff43bd,
+54,2025-10-19T13:11:17.781918,trade-processing-topic,Transaction deadlock - conflicting locks,EVT-0054,UUID,NEW,1,INFRASTRUCTURE,DEADLOCK,org.postgresql.util.PSQLException,trade-service-2.prod.internal,True,KAFKA,trade-consumer-service,BLOOMBERG,OPEN,10,2025-10-20T22:11:17.781918,dev-team,Escalated to L2,"org.postgresql.util.PSQLException: Transaction deadlock - conflicting locks
+	at com.zaxxer.hikari.pool.HikariPool.getConnection(HikariPool.java:197)
+	at com.trading.repository.TradeRepository.findById(TradeRepository.java:45)
+	at com.trading.service.TradeService.getTrade(TradeService.java:89)
+	at com.trading.controller.TradeController.getTradeById(TradeController.java:34)",{},b2a59672-cd66-4fc1-b181-737bf3f23c72,
+55,2025-10-05T02:11:17.781918,trade-validation-topic,Connection to database timed out after 10000ms,EVT-0055,UUID,CANCEL,2,INFRASTRUCTURE,TIMEOUT,java.sql.SQLTimeoutException,trade-service-4.prod.internal,False,KAFKA,trade-validation-service,ATLAS,CLOSED,8,2025-10-06T10:11:17.781918,system-auto,Investigating,"java.sql.SQLTimeoutException: Connection to database timed out after 10000ms
+	at com.zaxxer.hikari.pool.HikariPool.getConnection(HikariPool.java:197)
+	at com.trading.repository.TradeRepository.findById(TradeRepository.java:45)
+	at com.trading.service.TradeService.getTrade(TradeService.java:89)
+	at com.trading.controller.TradeController.getTradeById(TradeController.java:34)",{},3e23817c-30ca-4fdb-b914-76fcd3bdc494,Increased connection pool size from 30000 to 30000 and timeout to 60000ms.
+56,2025-08-19T14:11:17.781918,trade-processing-topic,GC overhead limit exceeded,EVT-0056,UUID,MODIFY,2,INFRASTRUCTURE,MEMORY,java.lang.OutOfMemoryError,trade-service-2.prod.internal,False,KAFKA,trade-validation-service,ATLAS,CLOSED,1,2025-08-20T16:11:17.781918,dev-team,Escalated to L2,"java.lang.OutOfMemoryError: GC overhead limit exceeded
+	at com.trading.parser.TradeFieldParser.parseFields(TradeFieldParser.java:78)
+	at com.trading.service.TradeIngestionService.ingest(TradeIngestionService.java:45)
+	at com.trading.kafka.MessageDeserializer.deserialize(MessageDeserializer.java:67)",{},15494a37-5615-4aae-99ec-1dc8d2c6e540,Memory leak in cache. Fixed cache eviction policy and increased heap to 4GB.
+57,2025-10-21T22:11:17.781918,trade-validation-topic,Type mismatch: expected value1 but got value2,EVT-0057,UUID,CANCEL,3,VALIDATION,TYPE_MISMATCH,java.lang.ClassCastException,trade-service-5.prod.internal,False,KAFKA,trade-consumer-service,ATLAS,CLOSED,3,2025-10-23T04:11:17.781918,ops-team,Escalated to L2,"java.lang.ClassCastException: Type mismatch: expected value1 but got value2
+	at com.trading.transformer.TradeTransformer.transform(TradeTransformer.java:89)
+	at com.trading.service.TradeService.transformTrade(TradeService.java:123)
+	at com.trading.processor.TradeProcessor.process(TradeProcessor.java:45)",{},14ed73dc-d7a4-4405-a00e-8c4f777f74d6,Added type checking before cast. Reject messages with incompatible types.
+58,2025-09-19T07:11:17.781918,trade-processing-topic,Database connection timeout: 5000ms,EVT-0058,UUID,NEW,3,INFRASTRUCTURE,TIMEOUT,java.sql.SQLTimeoutException,trade-service-3.prod.internal,False,KAFKA,trade-ingestion-service,ATLAS,CLOSED,5,2025-09-19T17:11:17.781918,ops-team,Awaiting upstream fix,"java.sql.SQLTimeoutException: Database connection timeout: 5000ms
+	at com.zaxxer.hikari.pool.HikariPool.getConnection(HikariPool.java:197)
+	at com.trading.repository.TradeRepository.findById(TradeRepository.java:45)
+	at com.trading.service.TradeService.getTrade(TradeService.java:89)
+	at com.trading.controller.TradeController.getTradeById(TradeController.java:34)
+... 10 more",{},ffcdcfa1-082e-400a-b63e-696aeeb209a1,Optimized query performance. Reduced execution time from 120000ms to 120000ms.
+59,2025-10-25T09:11:17.781918,trade-validation-topic,Null pointer accessing field trade.amount,EVT-0059,UUID,NEW,3,VALIDATION,NULL_VALUE,java.lang.NullPointerException,trade-service-5.prod.internal,True,KAFKA,trade-validation-service,MUREX,OPEN,3,2025-10-25T14:11:17.781918,dev-team,Escalated to L2,"java.lang.NullPointerException: Null pointer accessing field trade.amount
+	at com.trading.validation.TradeValidator.validate(TradeValidator.java:45)
+	at com.trading.service.TradeService.processTrade(TradeService.java:67)
+	at com.trading.kafka.MessageHandler.handleMessage(MessageHandler.java:34)
+	at com.trading.kafka.KafkaConsumer.poll(KafkaConsumer.java:89)
+... 18 more",{},db598101-7d56-409b-acdd-5f8599405b19,
+60,2025-08-19T17:11:17.781918,trade-validation-topic,Database connection timeout: 10000ms,EVT-0060,UUID,CANCEL,1,INFRASTRUCTURE,TIMEOUT,java.sql.SQLTimeoutException,trade-service-2.prod.internal,False,KAFKA,trade-ingestion-service,MUREX,CLOSED,5,2025-08-21T15:11:17.781918,dev-team,,"java.sql.SQLTimeoutException: Database connection timeout: 10000ms
+	at com.zaxxer.hikari.pool.HikariPool.getConnection(HikariPool.java:197)
+	at com.trading.repository.TradeRepository.findById(TradeRepository.java:45)
+	at com.trading.service.TradeService.getTrade(TradeService.java:89)
+	at com.trading.controller.TradeController.getTradeById(TradeController.java:34)
+... 18 more",{},9a604b78-bd95-48e9-b763-f8004d8d4340,Optimized query performance. Reduced execution time from 60000ms to 120000ms.
+61,2025-11-12T03:11:17.781918,trade-validation-topic,Index 5 out of bounds for length 2,EVT-0061,UUID,NEW,2,VALIDATION,INVALID_DATA,java.lang.ArrayIndexOutOfBoundsException,trade-service-1.prod.internal,False,KAFKA,trade-ingestion-service,BLOOMBERG,CLOSED,2,2025-11-12T13:11:17.781918,ops-team,Escalated to L2,"java.lang.ArrayIndexOutOfBoundsException: Index 5 out of bounds for length 2
+	at com.trading.parser.TradeFieldParser.parseFields(TradeFieldParser.java:78)
+	at com.trading.service.TradeIngestionService.ingest(TradeIngestionService.java:45)
+	at com.trading.kafka.MessageDeserializer.deserialize(MessageDeserializer.java:67)",{},7080da78-171a-4d18-a54c-90de9575d100,Updated parser to handle variable-length arrays from upstream.
+62,2025-09-23T06:11:17.781918,trade-validation-topic,Type mismatch: expected value1 but got value2,EVT-0062,UUID,NEW,1,VALIDATION,TYPE_MISMATCH,java.lang.ClassCastException,trade-service-3.prod.internal,True,KAFKA,trade-consumer-service,BLOOMBERG,OPEN,19,2025-09-23T08:11:17.781918,dev-team,Awaiting upstream fix,"java.lang.ClassCastException: Type mismatch: expected value1 but got value2
+	at com.trading.transformer.TradeTransformer.transform(TradeTransformer.java:89)
+	at com.trading.service.TradeService.transformTrade(TradeService.java:123)
+	at com.trading.processor.TradeProcessor.process(TradeProcessor.java:45)",{},1bbb3381-ed23-4061-bef1-8de0ba017b09,
+63,2025-08-21T18:11:17.781918,trade-processing-topic,Cannot deserialize JSON - unexpected token,EVT-0063,UUID,MODIFY,1,VALIDATION,INVALID_FORMAT,com.fasterxml.jackson.core.JsonParseException,trade-service-1.prod.internal,True,KAFKA,trade-validation-service,BLOOMBERG,OPEN,6,2025-08-23T02:11:17.781918,system-auto,Escalated to L2,"com.fasterxml.jackson.core.JsonParseException: Cannot deserialize JSON - unexpected token
+	at com.trading.parser.TradeFieldParser.parseFields(TradeFieldParser.java:78)
+	at com.trading.service.TradeIngestionService.ingest(TradeIngestionService.java:45)
+	at com.trading.kafka.MessageDeserializer.deserialize(MessageDeserializer.java:67)
+... 7 more",{},32da6318-ae0a-4171-86d0-616ab8638b6a,
+64,2025-09-21T11:11:17.781918,trade-ingestion-topic,Object reference not set for counterparty,EVT-0064,UUID,MODIFY,3,VALIDATION,NULL_VALUE,java.lang.NullPointerException,trade-service-5.prod.internal,False,KAFKA,trade-ingestion-service,MUREX,CLOSED,2,2025-09-22T01:11:17.781918,system-auto,,"java.lang.NullPointerException: Object reference not set for counterparty
+	at com.trading.validation.TradeValidator.validate(TradeValidator.java:45)
+	at com.trading.service.TradeService.processTrade(TradeService.java:67)
+	at com.trading.kafka.MessageHandler.handleMessage(MessageHandler.java:34)
+	at com.trading.kafka.KafkaConsumer.poll(KafkaConsumer.java:89)
+... 16 more",{},e5f8aba4-7b54-4fcd-8186-1392480e2dd6,Added null check before accessing parameter. Reject message if object is null.
+65,2025-09-28T18:11:17.781918,trade-processing-topic,Kafka broker not available - timeout after 30000ms,EVT-0065,UUID,NEW,1,INFRASTRUCTURE,NETWORK,org.apache.kafka.common.errors.TimeoutException,trade-service-3.prod.internal,False,KAFKA,trade-consumer-service,BLOOMBERG,CLOSED,6,2025-09-29T10:11:17.781918,system-auto,Investigating,"org.apache.kafka.common.errors.TimeoutException: Kafka broker not available - timeout after 30000ms
+	at com.trading.kafka.ProducerService.publishTrade(ProducerService.java:45)
+	at com.trading.service.TradePublisher.publish(TradePublisher.java:23)
+	at com.trading.async.AsyncProcessor.process(AsyncProcessor.java:67)",{},daf141af-f94c-443e-8a2b-c9dcccf1a45d,Increased producer timeout from 60000ms to 60000ms.
+66,2025-11-09T10:11:17.781918,trade-processing-topic,Kafka broker not available - timeout after 30000ms,EVT-0066,UUID,MODIFY,2,INFRASTRUCTURE,NETWORK,org.apache.kafka.common.errors.TimeoutException,trade-service-2.prod.internal,False,KAFKA,trade-ingestion-service,BLOOMBERG,CLOSED,2,2025-11-10T09:11:17.781918,dev-team,,"org.apache.kafka.common.errors.TimeoutException: Kafka broker not available - timeout after 30000ms
+	at com.trading.kafka.ProducerService.publishTrade(ProducerService.java:45)
+	at com.trading.service.TradePublisher.publish(TradePublisher.java:23)
+	at com.trading.async.AsyncProcessor.process(AsyncProcessor.java:67)",{},74827647-2203-4a40-ad3a-327c0b1c754b,Increased producer timeout from 120000ms to 120000ms.
+67,2025-09-26T21:11:17.781918,trade-ingestion-topic,Query execution exceeded timeout of 30000ms,EVT-0067,UUID,MODIFY,2,INFRASTRUCTURE,TIMEOUT,java.sql.SQLTimeoutException,trade-service-5.prod.internal,True,KAFKA,trade-ingestion-service,ATLAS,OPEN,14,2025-09-28T12:11:17.781918,dev-team,Awaiting upstream fix,"java.sql.SQLTimeoutException: Query execution exceeded timeout of 30000ms
+	at com.zaxxer.hikari.pool.HikariPool.getConnection(HikariPool.java:197)
+	at com.trading.repository.TradeRepository.findById(TradeRepository.java:45)
+	at com.trading.service.TradeService.getTrade(TradeService.java:89)
+	at com.trading.controller.TradeController.getTradeById(TradeController.java:34)",{},2c39c01d-8080-4d5a-8df5-a2fc4b2aaab7,
+68,2025-09-22T10:11:17.781918,trade-validation-topic,GC overhead limit exceeded,EVT-0068,UUID,NEW,1,INFRASTRUCTURE,MEMORY,java.lang.OutOfMemoryError,trade-service-5.prod.internal,True,KAFKA,trade-validation-service,BLOOMBERG,OPEN,5,2025-09-24T08:11:17.781918,system-auto,Escalated to L2,"java.lang.OutOfMemoryError: GC overhead limit exceeded
+	at com.trading.parser.TradeFieldParser.parseFields(TradeFieldParser.java:78)
+	at com.trading.service.TradeIngestionService.ingest(TradeIngestionService.java:45)
+	at com.trading.kafka.MessageDeserializer.deserialize(MessageDeserializer.java:67)",{},a0ca3d38-e8d7-4a49-9108-7821fb79f42b,
+69,2025-08-17T19:11:17.781918,trade-processing-topic,Cannot invoke trade.quantity on null object,EVT-0069,UUID,NEW,2,VALIDATION,NULL_VALUE,java.lang.NullPointerException,trade-service-1.prod.internal,False,KAFKA,trade-consumer-service,MUREX,CLOSED,5,2025-08-18T12:11:17.781918,ops-team,Awaiting upstream fix,"java.lang.NullPointerException: Cannot invoke trade.quantity on null object
+	at com.trading.validation.TradeValidator.validate(TradeValidator.java:45)
+	at com.trading.service.TradeService.processTrade(TradeService.java:67)
+	at com.trading.kafka.MessageHandler.handleMessage(MessageHandler.java:34)
+	at com.trading.kafka.KafkaConsumer.poll(KafkaConsumer.java:89)",{},720771e7-e322-4d5f-ac63-79868d2d1973,Fixed by validating value is not null before processing.
+70,2025-10-20T02:11:17.781918,trade-ingestion-topic,Class cast exception: String cannot be converted to Integer,EVT-0070,UUID,CANCEL,3,VALIDATION,TYPE_MISMATCH,java.lang.ClassCastException,trade-service-1.prod.internal,False,KAFKA,trade-consumer-service,ATLAS,CLOSED,3,2025-10-21T04:11:17.781918,system-auto,Investigating,"java.lang.ClassCastException: Class cast exception: String cannot be converted to Integer
+	at com.trading.transformer.TradeTransformer.transform(TradeTransformer.java:89)
+	at com.trading.service.TradeService.transformTrade(TradeService.java:123)
+	at com.trading.processor.TradeProcessor.process(TradeProcessor.java:45)
+... 13 more",{},41b1743e-6d46-4e22-bd9b-3d1a2d387050,Fixed type conversion in transformer. Now handles both parameter and field.
+71,2025-10-20T09:11:17.781918,trade-processing-topic,Query execution exceeded timeout of 10000ms,EVT-0071,UUID,MODIFY,2,INFRASTRUCTURE,TIMEOUT,java.sql.SQLTimeoutException,trade-service-1.prod.internal,False,KAFKA,trade-ingestion-service,BLOOMBERG,CLOSED,7,2025-10-22T08:11:17.781918,system-auto,,"java.sql.SQLTimeoutException: Query execution exceeded timeout of 10000ms
+	at com.zaxxer.hikari.pool.HikariPool.getConnection(HikariPool.java:197)
+	at com.trading.repository.TradeRepository.findById(TradeRepository.java:45)
+	at com.trading.service.TradeService.getTrade(TradeService.java:89)
+	at com.trading.controller.TradeController.getTradeById(TradeController.java:34)
+... 10 more",{},821e15c8-a7c1-41dc-9e15-58079025dcc8,Increased connection pool size from 60000 to 120000 and timeout to 60000ms.
+72,2025-08-31T00:11:17.781918,trade-ingestion-topic,Malformed JSON at line settlement.date,EVT-0072,UUID,MODIFY,1,VALIDATION,INVALID_FORMAT,com.fasterxml.jackson.core.JsonParseException,trade-service-2.prod.internal,False,KAFKA,trade-ingestion-service,BLOOMBERG,CLOSED,8,2025-08-31T08:11:17.781918,system-auto,,"com.fasterxml.jackson.core.JsonParseException: Malformed JSON at line settlement.date
+	at com.trading.parser.TradeFieldParser.parseFields(TradeFieldParser.java:78)
+	at com.trading.service.TradeIngestionService.ingest(TradeIngestionService.java:45)
+	at com.trading.kafka.MessageDeserializer.deserialize(MessageDeserializer.java:67)",{},0e3229d9-9626-4c4b-afb8-49db3c3d583f,Updated parser to handle additional JSON formats from upstream.
+73,2025-10-10T08:11:17.781918,trade-ingestion-topic,Null pointer accessing field settlement.date,EVT-0073,UUID,NEW,2,VALIDATION,NULL_VALUE,java.lang.NullPointerException,trade-service-4.prod.internal,False,KAFKA,trade-ingestion-service,ATLAS,CLOSED,10,2025-10-11T14:11:17.781918,ops-team,Awaiting upstream fix,"java.lang.NullPointerException: Null pointer accessing field settlement.date
+	at com.trading.validation.TradeValidator.validate(TradeValidator.java:45)
+	at com.trading.service.TradeService.processTrade(TradeService.java:67)
+	at com.trading.kafka.MessageHandler.handleMessage(MessageHandler.java:34)
+	at com.trading.kafka.KafkaConsumer.poll(KafkaConsumer.java:89)
+... 14 more",{},c7d8338f-c452-43fb-97cb-533e9d6171c1,Added defensive null checks in field validation.
+74,2025-10-28T01:11:17.781918,trade-processing-topic,OutOfMemoryError: unable to allocate 2097152 bytes,EVT-0074,UUID,CANCEL,1,INFRASTRUCTURE,MEMORY,java.lang.OutOfMemoryError,trade-service-5.prod.internal,False,KAFKA,trade-consumer-service,MUREX,CLOSED,5,2025-10-28T22:11:17.781918,system-auto,Escalated to L2,"java.lang.OutOfMemoryError: OutOfMemoryError: unable to allocate 2097152 bytes
+	at com.trading.parser.TradeFieldParser.parseFields(TradeFieldParser.java:78)
+	at com.trading.service.TradeIngestionService.ingest(TradeIngestionService.java:45)
+	at com.trading.kafka.MessageDeserializer.deserialize(MessageDeserializer.java:67)",{},9c6d9fc1-9547-4dbb-88b5-205c215fb2f3,Optimized object creation. Reduced memory usage by 50%.
+75,2025-10-09T18:11:17.781918,trade-ingestion-topic,Executor queue capacity settlement.date exceeded,EVT-0075,UUID,MODIFY,3,INFRASTRUCTURE,RESOURCE_EXHAUSTION,java.util.concurrent.RejectedExecutionException,trade-service-1.prod.internal,False,KAFKA,trade-ingestion-service,MUREX,CLOSED,3,2025-10-10T05:11:17.781918,dev-team,Awaiting upstream fix,"java.util.concurrent.RejectedExecutionException: Executor queue capacity settlement.date exceeded
+	at com.trading.kafka.ProducerService.publishTrade(ProducerService.java:45)
+	at com.trading.service.TradePublisher.publish(TradePublisher.java:23)
+	at com.trading.async.AsyncProcessor.process(AsyncProcessor.java:67)",{},23a7e736-1e5c-425d-a859-abce6a10d7aa,Implemented backpressure mechanism to slow down message consumption.
+76,2025-11-13T00:11:17.781918,trade-validation-topic,Index 7 out of bounds for length 1,EVT-0076,UUID,NEW,2,VALIDATION,INVALID_DATA,java.lang.ArrayIndexOutOfBoundsException,trade-service-1.prod.internal,True,KAFKA,trade-consumer-service,ATLAS,OPEN,19,2025-11-13T07:11:17.781918,ops-team,Investigating,"java.lang.ArrayIndexOutOfBoundsException: Index 7 out of bounds for length 1
+	at com.trading.parser.TradeFieldParser.parseFields(TradeFieldParser.java:78)
+	at com.trading.service.TradeIngestionService.ingest(TradeIngestionService.java:45)
+	at com.trading.kafka.MessageDeserializer.deserialize(MessageDeserializer.java:67)
+... 5 more",{},31ef42db-edeb-47e3-a2be-b3dee6d14d1f,
+77,2025-11-11T18:11:17.781918,trade-processing-topic,Task rejected from ThreadPoolExecutor,EVT-0077,UUID,CANCEL,1,INFRASTRUCTURE,RESOURCE_EXHAUSTION,java.util.concurrent.RejectedExecutionException,trade-service-5.prod.internal,True,KAFKA,trade-validation-service,MUREX,OPEN,6,2025-11-12T21:11:17.781918,system-auto,,"java.util.concurrent.RejectedExecutionException: Task rejected from ThreadPoolExecutor
+	at com.trading.kafka.ProducerService.publishTrade(ProducerService.java:45)
+	at com.trading.service.TradePublisher.publish(TradePublisher.java:23)
+	at com.trading.async.AsyncProcessor.process(AsyncProcessor.java:67)
+... 20 more",{},87659b45-96bc-4eda-98a2-b1b3cf120643,
+78,2025-10-14T05:11:17.781918,trade-validation-topic,Connection refused to Redis cache,EVT-0078,UUID,NEW,2,INFRASTRUCTURE,CONNECTION_ERROR,redis.clients.jedis.exceptions.JedisConnectionException,trade-service-4.prod.internal,False,KAFKA,trade-validation-service,ATLAS,CLOSED,4,2025-10-15T15:11:17.781918,dev-team,Investigating,"redis.clients.jedis.exceptions.JedisConnectionException: Connection refused to Redis cache
+	at redis.clients.jedis.Connection.connect(Connection.java:89)
+	at com.trading.cache.RedisCacheService.get(RedisCacheService.java:34)
+	at com.trading.service.ReferenceDataService.getSecurityInfo(ReferenceDataService.java:56)
+... 7 more",{},94e27acb-6438-4999-9097-b99e4d6ca1e1,Increased Redis connection pool size from 50 to 20.
+79,2025-08-22T07:11:17.781918,trade-ingestion-topic,Connection to database timed out after 60000ms,EVT-0079,UUID,NEW,3,INFRASTRUCTURE,TIMEOUT,java.sql.SQLTimeoutException,trade-service-3.prod.internal,False,KAFKA,trade-consumer-service,ATLAS,CLOSED,3,2025-08-23T01:11:17.781918,system-auto,Escalated to L2,"java.sql.SQLTimeoutException: Connection to database timed out after 60000ms
+	at com.zaxxer.hikari.pool.HikariPool.getConnection(HikariPool.java:197)
+	at com.trading.repository.TradeRepository.findById(TradeRepository.java:45)
+	at com.trading.service.TradeService.getTrade(TradeService.java:89)
+	at com.trading.controller.TradeController.getTradeById(TradeController.java:34)
+... 20 more",{},5bf6d282-101e-4c65-b65f-e3681f77f03b,Increased connection pool size from 30000 to 60000 and timeout to 30000ms.
+80,2025-11-14T08:11:17.781918,trade-processing-topic,Cannot cast Long to Double,EVT-0080,UUID,CANCEL,1,VALIDATION,TYPE_MISMATCH,java.lang.ClassCastException,trade-service-2.prod.internal,False,KAFKA,trade-consumer-service,BLOOMBERG,CLOSED,9,2025-11-14T20:11:17.781918,ops-team,Awaiting upstream fix,"java.lang.ClassCastException: Cannot cast Long to Double
+	at com.trading.transformer.TradeTransformer.transform(TradeTransformer.java:89)
+	at com.trading.service.TradeService.transformTrade(TradeService.java:123)
+	at com.trading.processor.TradeProcessor.process(TradeProcessor.java:45)
+... 8 more",{},6ef19f9d-27b4-4f30-8f15-dde84a4a13ea,Fixed type conversion in transformer. Now handles both parameter and field.
+81,2025-10-04T22:11:17.781918,trade-ingestion-topic,Attempting to access element value1 in array of size value2,EVT-0081,UUID,MODIFY,2,VALIDATION,INVALID_DATA,java.lang.ArrayIndexOutOfBoundsException,trade-service-4.prod.internal,False,KAFKA,trade-ingestion-service,MUREX,CLOSED,7,2025-10-06T16:11:17.781918,ops-team,Escalated to L2,"java.lang.ArrayIndexOutOfBoundsException: Attempting to access element value1 in array of size value2
+	at com.trading.parser.TradeFieldParser.parseFields(TradeFieldParser.java:78)
+	at com.trading.service.TradeIngestionService.ingest(TradeIngestionService.java:45)
+	at com.trading.kafka.MessageDeserializer.deserialize(MessageDeserializer.java:67)
+... 8 more",{},01f3b6bb-e230-440d-9ced-abee3a48cd0d,Updated parser to handle variable-length arrays from upstream.
+82,2025-08-17T07:11:17.781918,trade-ingestion-topic,Unexpected character at position counterparty,EVT-0082,UUID,NEW,2,VALIDATION,INVALID_FORMAT,com.fasterxml.jackson.core.JsonParseException,trade-service-2.prod.internal,True,KAFKA,trade-validation-service,BLOOMBERG,OPEN,13,2025-08-17T22:11:17.781918,system-auto,,"com.fasterxml.jackson.core.JsonParseException: Unexpected character at position counterparty
+	at com.trading.parser.TradeFieldParser.parseFields(TradeFieldParser.java:78)
+	at com.trading.service.TradeIngestionService.ingest(TradeIngestionService.java:45)
+	at com.trading.kafka.MessageDeserializer.deserialize(MessageDeserializer.java:67)
+... 13 more",{},3c6e0fdc-6518-4d0b-9cc1-75a4b2e4dded,
+83,2025-10-01T19:11:17.781918,trade-ingestion-topic,Failed to update metadata after 5000 ms,EVT-0083,UUID,NEW,3,INFRASTRUCTURE,NETWORK,org.apache.kafka.common.errors.TimeoutException,trade-service-2.prod.internal,False,KAFKA,trade-validation-service,ATLAS,CLOSED,10,2025-10-03T08:11:17.781918,dev-team,Awaiting upstream fix,"org.apache.kafka.common.errors.TimeoutException: Failed to update metadata after 5000 ms
+	at com.trading.kafka.ProducerService.publishTrade(ProducerService.java:45)
+	at com.trading.service.TradePublisher.publish(TradePublisher.java:23)
+	at com.trading.async.AsyncProcessor.process(AsyncProcessor.java:67)",{},7b136b47-f9ee-4023-9cde-d4ea00358d88,Increased producer timeout from 60000ms to 120000ms.
+84,2025-10-03T04:11:17.781918,trade-validation-topic,Cannot deserialize JSON - unexpected token,EVT-0084,UUID,MODIFY,2,VALIDATION,INVALID_FORMAT,com.fasterxml.jackson.core.JsonParseException,trade-service-3.prod.internal,False,KAFKA,trade-consumer-service,MUREX,CLOSED,7,2025-10-03T09:11:17.781918,dev-team,Investigating,"com.fasterxml.jackson.core.JsonParseException: Cannot deserialize JSON - unexpected token
+	at com.trading.parser.TradeFieldParser.parseFields(TradeFieldParser.java:78)
+	at com.trading.service.TradeIngestionService.ingest(TradeIngestionService.java:45)
+	at com.trading.kafka.MessageDeserializer.deserialize(MessageDeserializer.java:67)
+... 9 more",{},e1dc3879-116d-4944-b654-ed0adc42ec49,Updated parser to handle additional JSON formats from upstream.
+85,2025-10-23T16:11:17.781918,trade-validation-topic,GC overhead limit exceeded,EVT-0085,UUID,MODIFY,1,INFRASTRUCTURE,MEMORY,java.lang.OutOfMemoryError,trade-service-3.prod.internal,False,KAFKA,trade-consumer-service,BLOOMBERG,CLOSED,5,2025-10-24T08:11:17.781918,dev-team,Investigating,"java.lang.OutOfMemoryError: GC overhead limit exceeded
+	at com.trading.parser.TradeFieldParser.parseFields(TradeFieldParser.java:78)
+	at com.trading.service.TradeIngestionService.ingest(TradeIngestionService.java:45)
+	at com.trading.kafka.MessageDeserializer.deserialize(MessageDeserializer.java:67)",{},b61d8073-f651-46c3-8a7a-e1b9a72d1abf,Memory leak in cache. Fixed cache eviction policy and increased heap to 16GB.
+86,2025-11-03T22:11:17.781918,trade-processing-topic,Connection refused to Redis cache,EVT-0086,UUID,CANCEL,3,INFRASTRUCTURE,CONNECTION_ERROR,redis.clients.jedis.exceptions.JedisConnectionException,trade-service-4.prod.internal,True,KAFKA,trade-consumer-service,MUREX,OPEN,8,2025-11-04T20:11:17.781918,system-auto,Awaiting upstream fix,"redis.clients.jedis.exceptions.JedisConnectionException: Connection refused to Redis cache
+	at redis.clients.jedis.Connection.connect(Connection.java:89)
+	at com.trading.cache.RedisCacheService.get(RedisCacheService.java:34)
+	at com.trading.service.ReferenceDataService.getSecurityInfo(ReferenceDataService.java:56)",{},2fe482d8-c157-4562-8441-4566e5b7d9a1,
+87,2025-10-31T13:11:17.781918,trade-processing-topic,Java heap space exhausted,EVT-0087,UUID,CANCEL,2,INFRASTRUCTURE,MEMORY,java.lang.OutOfMemoryError,trade-service-3.prod.internal,False,KAFKA,trade-ingestion-service,MUREX,CLOSED,3,2025-11-01T13:11:17.781918,system-auto,,"java.lang.OutOfMemoryError: Java heap space exhausted
+	at com.trading.parser.TradeFieldParser.parseFields(TradeFieldParser.java:78)
+	at com.trading.service.TradeIngestionService.ingest(TradeIngestionService.java:45)
+	at com.trading.kafka.MessageDeserializer.deserialize(MessageDeserializer.java:67)",{},ac14e3d1-1b7a-4c4a-bba9-5dd4a2af8c38,Memory leak in cache. Fixed cache eviction policy and increased heap to 4GB.
+88,2025-08-29T21:11:17.781918,trade-processing-topic,Transaction deadlock - conflicting locks,EVT-0088,UUID,NEW,2,INFRASTRUCTURE,DEADLOCK,org.postgresql.util.PSQLException,trade-service-2.prod.internal,False,KAFKA,trade-consumer-service,BLOOMBERG,CLOSED,6,2025-08-30T11:11:17.781918,ops-team,Investigating,"org.postgresql.util.PSQLException: Transaction deadlock - conflicting locks
+	at com.zaxxer.hikari.pool.HikariPool.getConnection(HikariPool.java:197)
+	at com.trading.repository.TradeRepository.findById(TradeRepository.java:45)
+	at com.trading.service.TradeService.getTrade(TradeService.java:89)
+	at com.trading.controller.TradeController.getTradeById(TradeController.java:34)
+... 15 more",{},b2c98621-b794-4aaa-ba82-734d0084e30f,Reduced transaction scope. Split large transaction into smaller batches.
+89,2025-09-28T07:11:17.781918,trade-validation-topic,Database deadlock while acquiring lock on table trades,EVT-0089,UUID,MODIFY,2,INFRASTRUCTURE,DEADLOCK,org.postgresql.util.PSQLException,trade-service-3.prod.internal,False,KAFKA,trade-ingestion-service,ATLAS,CLOSED,8,2025-09-29T20:11:17.781918,ops-team,Escalated to L2,"org.postgresql.util.PSQLException: Database deadlock while acquiring lock on table trades
+	at com.zaxxer.hikari.pool.HikariPool.getConnection(HikariPool.java:197)
+	at com.trading.repository.TradeRepository.findById(TradeRepository.java:45)
+	at com.trading.service.TradeService.getTrade(TradeService.java:89)
+	at com.trading.controller.TradeController.getTradeById(TradeController.java:34)",{},c3dba452-ac9c-48cb-9cb8-f7b047309f95,Added deadlock retry logic with exponential backoff.
+90,2025-11-04T12:11:17.781918,trade-ingestion-topic,Query execution exceeded timeout of 60000ms,EVT-0090,UUID,MODIFY,3,INFRASTRUCTURE,TIMEOUT,java.sql.SQLTimeoutException,trade-service-4.prod.internal,False,KAFKA,trade-ingestion-service,ATLAS,CLOSED,2,2025-11-05T16:11:17.781918,system-auto,Awaiting upstream fix,"java.sql.SQLTimeoutException: Query execution exceeded timeout of 60000ms
+	at com.zaxxer.hikari.pool.HikariPool.getConnection(HikariPool.java:197)
+	at com.trading.repository.TradeRepository.findById(TradeRepository.java:45)
+	at com.trading.service.TradeService.getTrade(TradeService.java:89)
+	at com.trading.controller.TradeController.getTradeById(TradeController.java:34)
+... 7 more",{},13d61e5b-e84d-4a4f-a60b-8ee5b2450236,Added connection pooling and increased timeout to 120000ms.
+91,2025-10-18T04:11:17.781918,trade-processing-topic,Connection to database timed out after 5000ms,EVT-0091,UUID,CANCEL,1,INFRASTRUCTURE,TIMEOUT,java.sql.SQLTimeoutException,trade-service-5.prod.internal,False,KAFKA,trade-ingestion-service,ATLAS,CLOSED,6,2025-10-19T20:11:17.781918,dev-team,,"java.sql.SQLTimeoutException: Connection to database timed out after 5000ms
+	at com.zaxxer.hikari.pool.HikariPool.getConnection(HikariPool.java:197)
+	at com.trading.repository.TradeRepository.findById(TradeRepository.java:45)
+	at com.trading.service.TradeService.getTrade(TradeService.java:89)
+	at com.trading.controller.TradeController.getTradeById(TradeController.java:34)
+... 20 more",{},96139e84-d1cc-4553-8016-6113ab28fdd8,Increased connection pool size from 120000 to 60000 and timeout to 30000ms.
+92,2025-10-17T21:11:17.781918,trade-ingestion-topic,Connection to database timed out after 5000ms,EVT-0092,UUID,NEW,1,INFRASTRUCTURE,TIMEOUT,java.sql.SQLTimeoutException,trade-service-4.prod.internal,False,KAFKA,trade-ingestion-service,BLOOMBERG,CLOSED,6,2025-10-19T04:11:17.781918,system-auto,,"java.sql.SQLTimeoutException: Connection to database timed out after 5000ms
+	at com.zaxxer.hikari.pool.HikariPool.getConnection(HikariPool.java:197)
+	at com.trading.repository.TradeRepository.findById(TradeRepository.java:45)
+	at com.trading.service.TradeService.getTrade(TradeService.java:89)
+	at com.trading.controller.TradeController.getTradeById(TradeController.java:34)",{},5a9ec92d-4543-4b85-825f-e1649e8a65dd,Added connection pooling and increased timeout to 30000ms.
+93,2025-11-04T22:11:17.781918,trade-ingestion-topic,Connection to database timed out after 30000ms,EVT-0093,UUID,NEW,1,INFRASTRUCTURE,TIMEOUT,java.sql.SQLTimeoutException,trade-service-4.prod.internal,False,KAFKA,trade-consumer-service,MUREX,CLOSED,2,2025-11-06T06:11:17.781918,system-auto,Investigating,"java.sql.SQLTimeoutException: Connection to database timed out after 30000ms
+	at com.zaxxer.hikari.pool.HikariPool.getConnection(HikariPool.java:197)
+	at com.trading.repository.TradeRepository.findById(TradeRepository.java:45)
+	at com.trading.service.TradeService.getTrade(TradeService.java:89)
+	at com.trading.controller.TradeController.getTradeById(TradeController.java:34)
+... 10 more",{},5cd848dc-283e-4900-80e5-34b5bc4fb7cf,Optimized query performance. Reduced execution time from 120000ms to 60000ms.
+94,2025-10-28T22:11:17.781918,trade-processing-topic,Redis connection timeout after 30000ms,EVT-0094,UUID,MODIFY,2,INFRASTRUCTURE,CONNECTION_ERROR,redis.clients.jedis.exceptions.JedisConnectionException,trade-service-3.prod.internal,False,KAFKA,trade-validation-service,MUREX,CLOSED,7,2025-10-29T02:11:17.781918,dev-team,Investigating,"redis.clients.jedis.exceptions.JedisConnectionException: Redis connection timeout after 30000ms
+	at redis.clients.jedis.Connection.connect(Connection.java:89)
+	at com.trading.cache.RedisCacheService.get(RedisCacheService.java:34)
+	at com.trading.service.ReferenceDataService.getSecurityInfo(ReferenceDataService.java:56)
+... 20 more",{},1dcc53fc-6ca1-42b8-9fd1-40608ed5ffbe,Redis instance was not running. Started Redis and configured auto-restart.
+95,2025-09-06T18:11:17.781918,trade-validation-topic,Attempting to access element value1 in array of size value2,EVT-0095,UUID,CANCEL,1,VALIDATION,INVALID_DATA,java.lang.ArrayIndexOutOfBoundsException,trade-service-1.prod.internal,True,KAFKA,trade-ingestion-service,BLOOMBERG,OPEN,1,2025-09-08T04:11:17.781918,dev-team,Escalated to L2,"java.lang.ArrayIndexOutOfBoundsException: Attempting to access element value1 in array of size value2
+	at com.trading.parser.TradeFieldParser.parseFields(TradeFieldParser.java:78)
+	at com.trading.service.TradeIngestionService.ingest(TradeIngestionService.java:45)
+	at com.trading.kafka.MessageDeserializer.deserialize(MessageDeserializer.java:67)",{},141a74b6-10ba-49d3-8ced-d17cd9d00b65,
+96,2025-10-11T18:11:17.781918,trade-validation-topic,Failed to connect to Redis on port 6379,EVT-0096,UUID,NEW,1,INFRASTRUCTURE,CONNECTION_ERROR,redis.clients.jedis.exceptions.JedisConnectionException,trade-service-3.prod.internal,False,KAFKA,trade-validation-service,ATLAS,CLOSED,5,2025-10-13T13:11:17.781918,system-auto,Investigating,"redis.clients.jedis.exceptions.JedisConnectionException: Failed to connect to Redis on port 6379
+	at redis.clients.jedis.Connection.connect(Connection.java:89)
+	at com.trading.cache.RedisCacheService.get(RedisCacheService.java:34)
+	at com.trading.service.ReferenceDataService.getSecurityInfo(ReferenceDataService.java:56)
+... 15 more",{},c0614f42-256b-4ff2-9846-409b6cd1caa5,Increased Redis connection pool size from 100 to 10.
+97,2025-09-26T16:11:17.781918,trade-ingestion-topic,Connection to database timed out after 10000ms,EVT-0097,UUID,NEW,3,INFRASTRUCTURE,TIMEOUT,java.sql.SQLTimeoutException,trade-service-1.prod.internal,False,KAFKA,trade-consumer-service,ATLAS,CLOSED,9,2025-09-27T08:11:17.781918,ops-team,Investigating,"java.sql.SQLTimeoutException: Connection to database timed out after 10000ms
+	at com.zaxxer.hikari.pool.HikariPool.getConnection(HikariPool.java:197)
+	at com.trading.repository.TradeRepository.findById(TradeRepository.java:45)
+	at com.trading.service.TradeService.getTrade(TradeService.java:89)
+	at com.trading.controller.TradeController.getTradeById(TradeController.java:34)
+... 13 more",{},1797fcfd-68af-487b-b707-18ca3c39642a,Increased connection pool size from 60000 to 30000 and timeout to 30000ms.
+98,2025-09-29T06:11:17.781918,trade-ingestion-topic,Connection to database timed out after 10000ms,EVT-0098,UUID,NEW,2,INFRASTRUCTURE,TIMEOUT,java.sql.SQLTimeoutException,trade-service-2.prod.internal,False,KAFKA,trade-consumer-service,ATLAS,CLOSED,1,2025-09-29T07:11:17.781918,ops-team,,"java.sql.SQLTimeoutException: Connection to database timed out after 10000ms
+	at com.zaxxer.hikari.pool.HikariPool.getConnection(HikariPool.java:197)
+	at com.trading.repository.TradeRepository.findById(TradeRepository.java:45)
+	at com.trading.service.TradeService.getTrade(TradeService.java:89)
+	at com.trading.controller.TradeController.getTradeById(TradeController.java:34)
+... 15 more",{},4f476cc2-0154-48cf-9dd0-56929a8d61db,Added connection pooling and increased timeout to 30000ms.
+99,2025-11-03T22:11:17.781918,trade-processing-topic,Failed to update metadata after 10000 ms,EVT-0099,UUID,MODIFY,1,INFRASTRUCTURE,NETWORK,org.apache.kafka.common.errors.TimeoutException,trade-service-1.prod.internal,True,KAFKA,trade-validation-service,ATLAS,OPEN,14,2025-11-04T05:11:17.781918,system-auto,Escalated to L2,"org.apache.kafka.common.errors.TimeoutException: Failed to update metadata after 10000 ms
+	at com.trading.kafka.ProducerService.publishTrade(ProducerService.java:45)
+	at com.trading.service.TradePublisher.publish(TradePublisher.java:23)
+	at com.trading.async.AsyncProcessor.process(AsyncProcessor.java:67)
+... 20 more",{},fd365f03-3ae1-471a-bd58-3853f8e5bf86,
+100,2025-10-22T09:11:17.781918,trade-processing-topic,Unexpected character at position trade.amount,EVT-0100,UUID,NEW,2,VALIDATION,INVALID_FORMAT,com.fasterxml.jackson.core.JsonParseException,trade-service-5.prod.internal,False,KAFKA,trade-consumer-service,ATLAS,CLOSED,1,2025-10-22T14:11:17.781918,ops-team,,"com.fasterxml.jackson.core.JsonParseException: Unexpected character at position trade.amount
+	at com.trading.parser.TradeFieldParser.parseFields(TradeFieldParser.java:78)
+	at com.trading.service.TradeIngestionService.ingest(TradeIngestionService.java:45)
+	at com.trading.kafka.MessageDeserializer.deserialize(MessageDeserializer.java:67)
+... 6 more",{},51d68a01-4368-4267-9e72-191cc2a49349,Upstream system sending malformed JSON. Fixed producer schema validation.
