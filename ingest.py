@@ -6,8 +6,8 @@ Loads exceptions with status='CLOSED' and remarks into ChromaDB for similarity s
 
 import csv
 import os
+import yaml
 from pathlib import Path
-from llm_client import AzureOpenAIClient
 from vector_store import ExceptionVectorStore
 
 
@@ -33,6 +33,23 @@ def load_closed_exceptions(csv_path: str = "data/exceptions.csv"):
     return closed_exceptions
 
 
+def get_config_value(config_value: str, env_fallback: str = None) -> str:
+    """Get configuration value, supporting both direct values and ${ENV_VAR} substitution."""
+    if config_value:
+        if config_value.startswith("${") and config_value.endswith("}"):
+            env_var = config_value[2:-1]
+            if ':' in env_var:
+                var_name, default = env_var.split(':', 1)
+                return os.getenv(var_name, default)
+            return os.getenv(env_var)
+        return config_value
+
+    if env_fallback:
+        return os.getenv(env_fallback)
+
+    return None
+
+
 def ingest_to_vector_db(
     csv_path: str = "data/exceptions.csv",
     persist_directory: str = "./chromadb_data"
@@ -44,26 +61,43 @@ def ingest_to_vector_db(
         csv_path: Path to exceptions CSV
         persist_directory: ChromaDB persist directory
     """
-    # Get Azure OpenAI credentials from environment
-    endpoint = os.getenv("AZURE_OPENAI_ENDPOINT")
-    api_key = os.getenv("AZURE_OPENAI_KEY")
+    # Load config from config.yaml
+    config_file = Path(__file__).parent / "config.yaml"
+    if config_file.exists():
+        with open(config_file, 'r') as f:
+            config = yaml.safe_load(f)
+
+        endpoint = get_config_value(
+            config['azure_openai'].get('endpoint'),
+            'AZURE_OPENAI_ENDPOINT'
+        )
+        api_key = get_config_value(
+            config['azure_openai'].get('api_key'),
+            'AZURE_OPENAI_KEY'
+        )
+        api_version = config['azure_openai'].get('api_version', '2024-02-15-preview')
+        embedding_deployment = config['azure_openai']['models'].get('embeddings', 'text-embedding-ada-002')
+    else:
+        # Fallback to environment variables
+        endpoint = os.getenv("AZURE_OPENAI_ENDPOINT")
+        api_key = os.getenv("AZURE_OPENAI_KEY")
+        api_version = '2024-02-15-preview'
+        embedding_deployment = 'text-embedding-ada-002'
 
     if not endpoint or not api_key:
-        print("❌ Error: Set AZURE_OPENAI_ENDPOINT and AZURE_OPENAI_KEY environment variables")
-        print("\nExample:")
-        print("  export AZURE_OPENAI_ENDPOINT='https://your-resource.openai.azure.com/'")
-        print("  export AZURE_OPENAI_KEY='your-api-key'")
+        print("❌ Error: Azure OpenAI credentials not configured")
+        print("\nEdit config.yaml and paste your credentials:")
+        print("  azure_openai:")
+        print("    endpoint: 'https://your-resource.openai.azure.com/'")
+        print("    api_key: 'your-api-key'")
         return
-
-    print("Initializing Azure OpenAI client...")
-    llm_client = AzureOpenAIClient(
-        endpoint=endpoint,
-        api_key=api_key
-    )
 
     print("Initializing vector store...")
     vector_store = ExceptionVectorStore(
-        llm_client=llm_client,
+        endpoint=endpoint,
+        api_key=api_key,
+        api_version=api_version,
+        embedding_deployment=embedding_deployment,
         persist_directory=persist_directory
     )
 
@@ -99,14 +133,19 @@ def clear_vector_db(persist_directory: str = "./chromadb_data"):
     Args:
         persist_directory: ChromaDB persist directory
     """
-    from llm_client import AzureOpenAIClient
-
-    # Need a dummy client just to initialize the store
+    # Need dummy config just to initialize the store
     endpoint = os.getenv("AZURE_OPENAI_ENDPOINT", "dummy")
     api_key = os.getenv("AZURE_OPENAI_KEY", "dummy")
+    api_version = "2024-02-15-preview"
+    embedding_deployment = "text-embedding-ada-002"
 
-    llm_client = AzureOpenAIClient(endpoint=endpoint, api_key=api_key)
-    vector_store = ExceptionVectorStore(llm_client=llm_client, persist_directory=persist_directory)
+    vector_store = ExceptionVectorStore(
+        endpoint=endpoint,
+        api_key=api_key,
+        api_version=api_version,
+        embedding_deployment=embedding_deployment,
+        persist_directory=persist_directory
+    )
 
     print(f"Clearing vector database at {persist_directory}...")
     vector_store.clear()

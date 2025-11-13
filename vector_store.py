@@ -8,6 +8,7 @@ import chromadb
 from pathlib import Path
 from typing import List, Dict, Any, Optional
 from stacktrace_parser import StackTraceParser
+import llm_client
 
 
 class ExceptionVectorStore:
@@ -15,7 +16,10 @@ class ExceptionVectorStore:
 
     def __init__(
         self,
-        llm_client,
+        endpoint: str,
+        api_key: str,
+        api_version: str,
+        embedding_deployment: str,
         persist_directory: str = "./chromadb_data",
         collection_name: str = "resolved_exceptions"
     ):
@@ -23,11 +27,17 @@ class ExceptionVectorStore:
         Initialize vector store.
 
         Args:
-            llm_client: AzureOpenAIClient instance for generating embeddings
+            endpoint: Azure OpenAI endpoint URL
+            api_key: API key for authentication
+            api_version: API version
+            embedding_deployment: Embedding deployment name
             persist_directory: Directory to persist ChromaDB data
             collection_name: Name of the collection
         """
-        self.llm_client = llm_client
+        self.endpoint = endpoint
+        self.api_key = api_key
+        self.api_version = api_version
+        self.embedding_deployment = embedding_deployment
         self.persist_directory = persist_directory
         self.collection_name = collection_name
 
@@ -138,8 +148,14 @@ class ExceptionVectorStore:
         # Prepare text for embedding
         text = self._prepare_text_for_embedding(record)
 
-        # Generate embedding using Azure OpenAI
-        embedding = self.llm_client.generate_embedding(text)
+        # Generate embedding using simple request/response call
+        embedding = llm_client.generate_embedding(
+            endpoint=self.endpoint,
+            api_key=self.api_key,
+            api_version=self.api_version,
+            deployment=self.embedding_deployment,
+            text=text
+        )
 
         # Prepare metadata
         metadata = self._prepare_metadata(record)
@@ -178,9 +194,18 @@ class ExceptionVectorStore:
             texts.append(self._prepare_text_for_embedding(record))
             metadatas.append(self._prepare_metadata(record))
 
-        # Generate embeddings in batch
+        # Generate embeddings one by one
         print(f"Generating embeddings for {len(texts)} exceptions...")
-        embeddings = self.llm_client.generate_embeddings_batch(texts)
+        embeddings = []
+        for text in texts:
+            embedding = llm_client.generate_embedding(
+                endpoint=self.endpoint,
+                api_key=self.api_key,
+                api_version=self.api_version,
+                deployment=self.embedding_deployment,
+                text=text
+            )
+            embeddings.append(embedding)
 
         # Add to ChromaDB
         print(f"Adding {len(ids)} exceptions to vector store...")
@@ -215,8 +240,14 @@ class ExceptionVectorStore:
         # Prepare text for embedding
         text = self._prepare_text_for_embedding(exception_record)
 
-        # Generate embedding
-        embedding = self.llm_client.generate_embedding(text)
+        # Generate embedding using simple request/response call
+        embedding = llm_client.generate_embedding(
+            endpoint=self.endpoint,
+            api_key=self.api_key,
+            api_version=self.api_version,
+            deployment=self.embedding_deployment,
+            text=text
+        )
 
         # Build where filter
         where_filter = None

@@ -1,7 +1,7 @@
 """
-Azure OpenAI Client using requests library.
+Simple request/response functions for Azure OpenAI API.
 
-Simple client for chat completions and embeddings without SDK dependencies.
+No classes, no wrappers - just direct HTTP requests using requests library.
 """
 
 import requests
@@ -9,219 +9,202 @@ import time
 from typing import List, Dict, Any, Optional
 
 
-class AzureOpenAIClient:
-    """Client for Azure OpenAI API using requests."""
+def _make_request(
+    method: str,
+    url: str,
+    headers: Dict[str, str],
+    json_data: Dict[str, Any],
+    timeout: int = 60,
+    max_retries: int = 3
+) -> Dict[str, Any]:
+    """
+    Make HTTP request with retry logic.
 
-    def __init__(
-        self,
-        endpoint: str,
-        api_key: str,
-        api_version: str = "2024-02-15-preview",
-        chat_deployment: str = "gpt-4",
-        embedding_deployment: str = "text-embedding-ada-002",
-        timeout: int = 60
-    ):
-        """
-        Initialize Azure OpenAI client.
+    Args:
+        method: HTTP method (POST, GET, etc.)
+        url: Full URL
+        headers: Request headers
+        json_data: JSON payload
+        timeout: Request timeout in seconds
+        max_retries: Maximum retry attempts
 
-        Args:
-            endpoint: Azure OpenAI endpoint URL
-            api_key: API key for authentication
-            api_version: API version
-            chat_deployment: Deployment name for chat model
-            embedding_deployment: Deployment name for embedding model
-            timeout: Request timeout in seconds
-        """
-        self.endpoint = endpoint.rstrip('/')
-        self.api_key = api_key
-        self.api_version = api_version
-        self.chat_deployment = chat_deployment
-        self.embedding_deployment = embedding_deployment
-        self.timeout = timeout
+    Returns:
+        Response JSON
 
-    def _make_request(
-        self,
-        method: str,
-        url: str,
-        json_data: Dict[str, Any],
-        max_retries: int = 3
-    ) -> Dict[str, Any]:
-        """
-        Make HTTP request with retry logic.
+    Raises:
+        Exception: If request fails after retries
+    """
+    for attempt in range(max_retries):
+        try:
+            response = requests.request(
+                method=method,
+                url=url,
+                headers=headers,
+                json=json_data,
+                timeout=timeout
+            )
 
-        Args:
-            method: HTTP method (POST, GET, etc.)
-            url: Full URL
-            json_data: JSON payload
-            max_retries: Maximum retry attempts
+            if response.status_code == 200:
+                return response.json()
 
-        Returns:
-            Response JSON
+            # Handle rate limiting
+            if response.status_code == 429:
+                retry_after = int(response.headers.get('Retry-After', 5))
+                print(f"Rate limited. Retrying after {retry_after}s...")
+                time.sleep(retry_after)
+                continue
 
-        Raises:
-            Exception: If request fails after retries
-        """
-        headers = {
-            "Content-Type": "application/json",
-            "api-key": self.api_key
-        }
+            # Other errors
+            response.raise_for_status()
 
-        for attempt in range(max_retries):
-            try:
-                response = requests.request(
-                    method=method,
-                    url=url,
-                    headers=headers,
-                    json=json_data,
-                    timeout=self.timeout
-                )
+        except requests.exceptions.Timeout:
+            if attempt < max_retries - 1:
+                wait_time = 2 ** attempt
+                print(f"Timeout. Retrying in {wait_time}s...")
+                time.sleep(wait_time)
+            else:
+                raise Exception(f"Request timed out after {max_retries} attempts")
 
-                if response.status_code == 200:
-                    return response.json()
+        except requests.exceptions.RequestException as e:
+            if attempt < max_retries - 1:
+                wait_time = 2 ** attempt
+                print(f"Request failed: {e}. Retrying in {wait_time}s...")
+                time.sleep(wait_time)
+            else:
+                raise Exception(f"Request failed after {max_retries} attempts: {e}")
 
-                # Handle rate limiting
-                if response.status_code == 429:
-                    retry_after = int(response.headers.get('Retry-After', 5))
-                    print(f"Rate limited. Retrying after {retry_after}s...")
-                    time.sleep(retry_after)
-                    continue
+    raise Exception("Max retries exceeded")
 
-                # Other errors
-                response.raise_for_status()
 
-            except requests.exceptions.Timeout:
-                if attempt < max_retries - 1:
-                    wait_time = 2 ** attempt
-                    print(f"Timeout. Retrying in {wait_time}s...")
-                    time.sleep(wait_time)
-                else:
-                    raise Exception(f"Request timed out after {max_retries} attempts")
+def call_chat_completion(
+    endpoint: str,
+    api_key: str,
+    api_version: str,
+    deployment: str,
+    messages: List[Dict[str, str]],
+    temperature: float = 0.7,
+    max_tokens: Optional[int] = None
+) -> str:
+    """
+    Call Azure OpenAI chat completion API.
 
-            except requests.exceptions.RequestException as e:
-                if attempt < max_retries - 1:
-                    wait_time = 2 ** attempt
-                    print(f"Request failed: {e}. Retrying in {wait_time}s...")
-                    time.sleep(wait_time)
-                else:
-                    raise Exception(f"Request failed after {max_retries} attempts: {e}")
+    Args:
+        endpoint: Azure OpenAI endpoint URL
+        api_key: API key for authentication
+        api_version: API version (e.g., "2024-02-15-preview")
+        deployment: Deployment name (e.g., "gpt-4")
+        messages: List of message dicts with 'role' and 'content'
+        temperature: Sampling temperature (0-2)
+        max_tokens: Maximum tokens in response
 
-        raise Exception("Max retries exceeded")
+    Returns:
+        Response text content
 
-    def chat_completion(
-        self,
-        messages: List[Dict[str, str]],
-        temperature: float = 0.7,
-        max_tokens: Optional[int] = None,
-        **kwargs
-    ) -> str:
-        """
-        Get chat completion from Azure OpenAI.
-
-        Args:
-            messages: List of message dicts with 'role' and 'content'
-            temperature: Sampling temperature (0-2)
-            max_tokens: Maximum tokens in response
-            **kwargs: Additional parameters
-
-        Returns:
-            Response text content
-
-        Example:
-            messages = [
-                {"role": "system", "content": "You are a helpful assistant."},
-                {"role": "user", "content": "What is 2+2?"}
-            ]
-            response = client.chat_completion(messages)
-        """
-        url = (
-            f"{self.endpoint}/openai/deployments/{self.chat_deployment}"
-            f"/chat/completions?api-version={self.api_version}"
+    Example:
+        response = call_chat_completion(
+            endpoint="https://your-resource.openai.azure.com/",
+            api_key="your-key",
+            api_version="2024-02-15-preview",
+            deployment="gpt-4",
+            messages=[{"role": "user", "content": "Hello"}]
         )
+    """
+    endpoint = endpoint.rstrip('/')
+    url = (
+        f"{endpoint}/openai/deployments/{deployment}"
+        f"/chat/completions?api-version={api_version}"
+    )
 
-        payload = {
-            "messages": messages,
-            "temperature": temperature,
-            **kwargs
-        }
+    headers = {
+        "Content-Type": "application/json",
+        "api-key": api_key
+    }
 
-        if max_tokens:
-            payload["max_tokens"] = max_tokens
+    payload = {
+        "messages": messages,
+        "temperature": temperature
+    }
 
-        result = self._make_request("POST", url, payload)
-        return result["choices"][0]["message"]["content"]
+    if max_tokens:
+        payload["max_tokens"] = max_tokens
 
-    def generate_embedding(self, text: str) -> List[float]:
-        """
-        Generate embedding for text using Ada model.
+    result = _make_request("POST", url, headers, payload)
+    return result["choices"][0]["message"]["content"]
 
-        Args:
-            text: Text to embed
 
-        Returns:
-            Embedding vector (list of floats)
+def generate_embedding(
+    endpoint: str,
+    api_key: str,
+    api_version: str,
+    deployment: str,
+    text: str
+) -> List[float]:
+    """
+    Generate embedding for text using Azure OpenAI.
 
-        Example:
-            embedding = client.generate_embedding("Hello world")
-            print(len(embedding))  # 1536 for Ada-002
-        """
-        url = (
-            f"{self.endpoint}/openai/deployments/{self.embedding_deployment}"
-            f"/embeddings?api-version={self.api_version}"
+    Args:
+        endpoint: Azure OpenAI endpoint URL
+        api_key: API key for authentication
+        api_version: API version
+        deployment: Embedding deployment name (e.g., "text-embedding-ada-002")
+        text: Text to embed
+
+    Returns:
+        Embedding vector (list of floats)
+
+    Example:
+        embedding = generate_embedding(
+            endpoint="https://your-resource.openai.azure.com/",
+            api_key="your-key",
+            api_version="2024-02-15-preview",
+            deployment="text-embedding-ada-002",
+            text="Hello world"
         )
+    """
+    endpoint = endpoint.rstrip('/')
+    url = (
+        f"{endpoint}/openai/deployments/{deployment}"
+        f"/embeddings?api-version={api_version}"
+    )
 
-        payload = {
-            "input": text
-        }
+    headers = {
+        "Content-Type": "application/json",
+        "api-key": api_key
+    }
 
-        result = self._make_request("POST", url, payload)
-        return result["data"][0]["embedding"]
+    payload = {
+        "input": text
+    }
 
-    def generate_embeddings_batch(self, texts: List[str]) -> List[List[float]]:
-        """
-        Generate embeddings for multiple texts in a single request.
+    result = _make_request("POST", url, headers, payload)
+    return result["data"][0]["embedding"]
 
-        Args:
-            texts: List of texts to embed
 
-        Returns:
-            List of embedding vectors
+def analyze_exception(
+    endpoint: str,
+    api_key: str,
+    api_version: str,
+    deployment: str,
+    exception_data: Dict[str, Any],
+    similar_cases: List[Dict[str, Any]],
+    schema: str
+) -> str:
+    """
+    Generate AI-powered exception analysis using chat completion.
 
-        Example:
-            texts = ["Hello", "World"]
-            embeddings = client.generate_embeddings_batch(texts)
-        """
-        url = (
-            f"{self.endpoint}/openai/deployments/{self.embedding_deployment}"
-            f"/embeddings?api-version={self.api_version}"
-        )
+    Args:
+        endpoint: Azure OpenAI endpoint URL
+        api_key: API key for authentication
+        api_version: API version
+        deployment: Chat deployment name (e.g., "gpt-4")
+        exception_data: Current exception details
+        similar_cases: List of similar resolved exceptions
+        schema: Database schema for context
 
-        payload = {
-            "input": texts
-        }
-
-        result = self._make_request("POST", url, payload)
-        # Sort by index to maintain order
-        sorted_data = sorted(result["data"], key=lambda x: x["index"])
-        return [item["embedding"] for item in sorted_data]
-
-    def analyze_exception(
-        self,
-        exception_data: Dict[str, Any],
-        similar_cases: List[Dict[str, Any]],
-        schema: str
-    ) -> str:
-        """
-        Generate AI-powered exception analysis.
-
-        Args:
-            exception_data: Current exception details
-            similar_cases: List of similar resolved exceptions
-            schema: Database schema for context
-
-        Returns:
-            Analysis text with root cause and recommendations
-        """
-        system_prompt = """You are an expert system reliability engineer analyzing production exceptions.
+    Returns:
+        Analysis text with root cause and recommendations
+    """
+    system_prompt = """You are an expert system reliability engineer analyzing production exceptions.
 Your task is to provide clear, actionable root cause analysis and recommendations.
 
 Focus on:
@@ -232,15 +215,15 @@ Focus on:
 
 Be concise and technical."""
 
-        similar_text = "\n\n".join([
-            f"**Similar Case {i+1}** (Similarity: {case.get('similarity', 0)*100:.0f}%)\n"
-            f"Error: {case.get('error_message', 'N/A')[:200]}\n"
-            f"Type: {case.get('exception_type', 'N/A')}\n"
-            f"Resolution: {case.get('remarks', 'No remarks available')}"
-            for i, case in enumerate(similar_cases[:3])
-        ]) if similar_cases else "No similar cases found in history."
+    similar_text = "\n\n".join([
+        f"**Similar Case {i+1}** (Similarity: {case.get('similarity', 0)*100:.0f}%)\n"
+        f"Error: {case.get('metadata', {}).get('error_message', 'N/A')[:200]}\n"
+        f"Type: {case.get('metadata', {}).get('exception_type', 'N/A')}\n"
+        f"Resolution: {case.get('metadata', {}).get('remarks', 'No remarks available')}"
+        for i, case in enumerate(similar_cases[:3])
+    ]) if similar_cases else "No similar cases found in history."
 
-        user_prompt = f"""Analyze this exception:
+    user_prompt = f"""Analyze this exception:
 
 **Current Exception:**
 - Event ID: {exception_data.get('event_id')}
@@ -262,43 +245,17 @@ Provide:
 3. Recommended resolution based on similar cases
 4. Priority (High/Medium/Low)"""
 
-        messages = [
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": user_prompt}
-        ]
+    messages = [
+        {"role": "system", "content": system_prompt},
+        {"role": "user", "content": user_prompt}
+    ]
 
-        return self.chat_completion(messages, temperature=0.3, max_tokens=800)
-
-
-def test_client():
-    """Test the Azure OpenAI client."""
-    import os
-
-    endpoint = os.getenv("AZURE_OPENAI_ENDPOINT")
-    api_key = os.getenv("AZURE_OPENAI_KEY")
-
-    if not endpoint or not api_key:
-        print("Error: Set AZURE_OPENAI_ENDPOINT and AZURE_OPENAI_KEY environment variables")
-        return
-
-    client = AzureOpenAIClient(
+    return call_chat_completion(
         endpoint=endpoint,
-        api_key=api_key
+        api_key=api_key,
+        api_version=api_version,
+        deployment=deployment,
+        messages=messages,
+        temperature=0.3,
+        max_tokens=800
     )
-
-    # Test chat completion
-    print("Testing chat completion...")
-    response = client.chat_completion([
-        {"role": "user", "content": "Say 'Hello, World!' in one sentence."}
-    ])
-    print(f"Response: {response}\n")
-
-    # Test embedding
-    print("Testing embedding generation...")
-    embedding = client.generate_embedding("Test text for embedding")
-    print(f"Embedding dimension: {len(embedding)}")
-    print(f"First 5 values: {embedding[:5]}")
-
-
-if __name__ == "__main__":
-    test_client()
