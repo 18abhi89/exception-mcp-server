@@ -97,13 +97,12 @@ def initialize_clients():
 
     if not endpoint or not api_key:
         print("⚠️  Azure OpenAI credentials not configured")
-        print("   Set in config.yaml:")
+        print("   Edit config.yaml and paste your credentials:")
         print("     azure_openai:")
         print("       endpoint: 'https://your-resource.openai.azure.com/'")
         print("       api_key: 'your-api-key'")
-        print("   OR use environment variables:")
-        print("     export AZURE_OPENAI_ENDPOINT='...'")
-        print("     export AZURE_OPENAI_KEY='...'")
+        print("")
+        print("   Advanced: Use ${AZURE_OPENAI_ENDPOINT} for environment variable references")
         return
 
     # Initialize LLM client
@@ -338,7 +337,7 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
         if not vector_store or not llm_client:
             return [TextContent(
                 type="text",
-                text="❌ Vector store not initialized. Set AZURE_OPENAI_ENDPOINT and AZURE_OPENAI_KEY environment variables and restart."
+                text="❌ Vector store not initialized. Edit config.yaml with your Azure OpenAI credentials and restart."
             )]
 
         # Get exception
@@ -380,7 +379,7 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
         if not llm_client or not vector_store:
             return [TextContent(
                 type="text",
-                text="❌ AI client not initialized. Set AZURE_OPENAI_ENDPOINT and AZURE_OPENAI_KEY environment variables and restart."
+                text="❌ AI client not initialized. Edit config.yaml with your Azure OpenAI credentials and restart."
             )]
 
         # Get exception

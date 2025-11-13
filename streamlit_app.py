@@ -118,7 +118,7 @@ st.markdown("**AI-powered exception analysis with vector similarity search**")
 
 # Check if AI is available
 if not llm_client:
-    st.warning("⚠️ Azure OpenAI credentials not set. Set AZURE_OPENAI_ENDPOINT and AZURE_OPENAI_KEY environment variables.")
+    st.warning("⚠️ Azure OpenAI credentials not configured. Edit `config.yaml` and paste your endpoint and API key.")
 
 # Tabs
 tab1, tab2 = st.tabs(["📊 High Retry Exceptions", "🤖 AI Analysis"])
@@ -193,7 +193,7 @@ with tab2:
     st.header("🤖 AI-Powered Exception Analysis")
 
     if not llm_client or not vector_store:
-        st.error("❌ AI clients not initialized. Set environment variables and refresh page.")
+        st.error("❌ AI clients not initialized. Edit `config.yaml` with your Azure OpenAI credentials and refresh page.")
     else:
         # Vector DB stats
         vector_count = vector_store.count()
@@ -308,9 +308,9 @@ This framework demonstrates:
 - **Simple architecture** that works across projects
 
 ### Setup
-1. Set environment variables:
-   - `AZURE_OPENAI_ENDPOINT`
-   - `AZURE_OPENAI_KEY`
+1. Edit `config.yaml`:
+   - Paste your Azure OpenAI endpoint
+   - Paste your API key
 2. Run `python ingest.py` to load data
-3. Run `streamlit run streamlit_app_new.py`
+3. Run `streamlit run streamlit_app.py`
 """)

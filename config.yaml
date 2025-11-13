@@ -12,17 +12,11 @@ database:
   password: "${DB_PASSWORD:postgres}"
 
 # Azure OpenAI configuration
-# Three ways to configure credentials:
-# 1. Direct values (recommended for single team deployment):
-#    endpoint: "https://your-resource.openai.azure.com/"
-#    api_key: "your-api-key-here"
-# 2. Environment variable reference:
-#    endpoint: "${AZURE_OPENAI_ENDPOINT}"
-#    api_key: "${AZURE_OPENAI_KEY}"
-# 3. Just set environment variables and framework will use them automatically
+# SETUP: Paste your Azure OpenAI endpoint and API key below
+# Advanced: You can also use ${AZURE_OPENAI_ENDPOINT} to reference environment variables
 azure_openai:
-  endpoint: "${AZURE_OPENAI_ENDPOINT}"  # or set directly: "https://your-resource.openai.azure.com/"
-  api_key: "${AZURE_OPENAI_KEY}"        # or set directly: "your-api-key-here"
+  endpoint: "https://your-resource.openai.azure.com/"  # Replace with your Azure OpenAI endpoint
+  api_key: "your-api-key-here"                          # Replace with your Azure OpenAI API key
   api_version: "2024-02-15-preview"
 
   models:
